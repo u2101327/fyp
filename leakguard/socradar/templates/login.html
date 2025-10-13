@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login - LeakGuard{% endblock %}
+
+{% block content %}
+<div class="flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
+  <div class="w-full max-w-md space-y-8">
+    <div>
+      <!-- Logo and Title -->
+      <a href="#" class="flex items-center justify-center">
+        <img src="{% static 'images/logo.png' %}?v=2" alt="LeakGuard Logo" class="h-10 w-10 block object-contain">
+        <span class="ml-3 text-3xl font-bold text-gray-900 dark:text-white">LeakGuard</span>
+      </a>
+      <h2 class="mt-6 text-center text-2xl font-semibold tracking-tight text-gray-800 dark:text-gray-200">
+        Log in to your account
+      </h2>
+    </div>
+
+    <!-- Login Form -->
+    <form class="mt-8 space-y-6 bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg" action="" method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="remember" value="true">
+
+      <div class="space-y-4 rounded-md shadow-sm">
+        <!-- Username -->
+        <div>
+          <label for="id_username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+          <input id="id_username" name="username" type="text" autocomplete="username" required
+                 class="relative block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm mt-1 bg-transparent">
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label for="id_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+          <input id="id_password" name="password" type="password" autocomplete="current-password" required
+                 class="relative block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm mt-1 bg-transparent">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <input id="remember-me" name="remember-me" type="checkbox"
+                 class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:ring-offset-gray-800">
+          <label for="remember-me" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Remember me</label>
+        </div>
+
+        <div class="text-sm">
+          <a href="#" class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
+            Forgot your password?
+          </a>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div>
+        <button type="submit"
+                class="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+          Log In
+        </button>
+      </div>
+    </form>
+
+    <!-- Messages -->
+    {% if messages %}
+      <div class="space-y-2">
+        {% for message in messages %}
+          <p class="text-center text-sm {{ message.tags|default:'text-red-600 dark:text-red-400' }}">
+            {{ message }}
+          </p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Registration Link -->
+    <p class="text-center text-sm text-gray-600 dark:text-gray-400">
+      Don't have an account?
+      <a href="{% url 'register' %}" class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
+        Sign up
+      </a>
+    </p>
+  </div>
+</div>
+{% endblock %}

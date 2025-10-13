@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Data Leak Monitoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Reusing dark mode styles from your dashboard for consistency */
+        .dark body {
+            background-color: #111827; /* A darker background for auth pages */
+        }
+        .dark .bg-white { background-color: #1f2937; }
+        .dark .text-gray-900 { color: #f9fafb; }
+        .dark .text-gray-800 { color: #e5e7eb; }
+        .dark .text-gray-700 { color: #d1d5db; }
+        .dark .text-gray-600 { color: #9ca3af; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .dark .border-gray-300 { border-color: #4b5563; }
+        .dark .focus\:ring-blue-500:focus {
+             --tw-ring-opacity: 1;
+             --tw-ring-color: rgb(59 130 246 / var(--tw-ring-opacity));
+             border-color: rgb(59 130 246 / var(--tw-ring-opacity));
+        }
+        .dark .placeholder-gray-400::placeholder {
+            color: #9ca3af;
+        }
+    </style>
+    <script>
+        // Apply dark mode on load if previously set from the dashboard
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+
+    <div class="flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-md space-y-8">
+            <div>
+                <a href="#" class="flex items-center justify-center">
+                    <svg class="h-10 w-10 text-blue-600 dark:text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286Zm0 13.036h.008v.015h-.008v-.015Z" />
+                    </svg>
+                    <span class="ml-3 text-3xl font-bold text-gray-900 dark:text-white">LeakGuard</span>
+                </a>
+                <h2 class="mt-6 text-center text-2xl font-semibold tracking-tight text-gray-800 dark:text-gray-200">
+                    Create your account
+                </h2>
+            </div>
+
+            <form class="mt-8 space-y-6 bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg" action="#" method="POST">
+                {% csrf_token %}
+                
+
+                
+                <input type="hidden" name="remember" value="true">
+                <div class="space-y-4 rounded-md shadow-sm">
+                    <div>
+                        <label for="id_username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                        <input id="id_username" name="username" type="text" autocomplete="name" required
+                               class="relative block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm mt-1 bg-transparent">
+                    </div>
+
+                    <div>
+                        <label for="email-address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email address</label>
+                        <input id="email-address" name="email" type="email" autocomplete="email" required
+                               class="relative block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm mt-1 bg-transparent">
+                    </div>
+
+                    <div>
+                        <label for="password1" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                        <input id="password1" name="password1" type="password" autocomplete="new-password" required
+                               class="relative block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm mt-1 bg-transparent">
+                    </div>
+
+                    <div>
+                        <label for="password2" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>
+                        <input id="password2" name="password2" type="password" autocomplete="new-password" required
+                               class="relative block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm mt-1 bg-transparent">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit"
+                            class="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                        Create Account
+                    </button>
+                </div>
+            </form>
+
+           
+            <p class="text-center text-sm text-gray-600 dark:text-gray-400">
+                Already have an account?
+                <a href="{% url 'login'%}" class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
+                    Log in here
+                </a>
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Data Leak Monitoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar-open {
+            transform: translateX(0);
+        }
+        .sidebar-closed {
+            transform: translateX(-100%);
+        }
+        /* Custom scrollbar for webkit browsers */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .dark body {
+            background-color: #1f2937;
+            color: #f3f4f6;
+        }
+        .dark .bg-white { background-color: #374151; }
+        .dark .text-gray-800 { color: #e5e7eb; }
+        .dark .text-gray-700 { color: #d1d5db; }
+        .dark .text-gray-600 { color: #9ca3af; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .dark .text-gray-400 { color: #9ca3af; }
+        .dark .border-gray-200 { border-color: #4b5563; }
+        .dark .border-gray-300 { border-color: #505966; }
+        .dark .hover\:bg-gray-100:hover { background-color: #4b5563; }
+        .dark .hover\:bg-blue-600:hover { background-color: #3b82f6; }
+        .dark .sidebar { background-color: #1f2937; border-right-color: #4b5563;}
+        .dark .focus\:ring-indigo-500:focus { --tw-ring-color: #6366f1; }
+        .dark input[type="text"], .dark input[type="email"], .dark input[type="password"], .dark select {
+            background-color: #4b5563; /* Darker input fields */
+            border-color: #505966;
+            color: #e5e7eb;
+        }
+        .dark input::placeholder {
+            color: #9ca3af;
+        }
+        .dark .ring-gray-300 { ring-color: #505966; }
+
+        .sidebar-active {
+            background-color: #e0e7ff; /* A light blue for active item in light mode */
+            color: #3b82f6; /* Blue text for active item in light mode */
+        }
+        .dark .sidebar-active {
+            background-color: #3730a3; /* A darker blue/purple for active item in dark mode */
+            color: #a5b4fc; /* Lighter text for active item in dark mode */
+        }
+        .toggle-bg:after {
+            content: '';
+            @apply absolute top-0.5 left-0.5 bg-white border border-gray-300 rounded-full h-5 w-5 shadow-sm transition-transform duration-200 ease-in-out;
+        }
+        input:checked + .toggle-bg:after {
+            transform: translateX(100%);
+            @apply border-white;
+        }
+        input:checked + .toggle-bg {
+            @apply bg-blue-600 border-blue-600;
+        }
+        .dark input:checked + .toggle-bg {
+             @apply bg-blue-500 border-blue-500;
+        }
+        .dark .toggle-bg:after {
+            background-color: #374151; /* Darker toggle circle */
+            border-color: #4b5563;
+        }
+         .dark input:checked + .toggle-bg:after {
+            background-color: #e5e7eb; /* Lighter circle when active in dark mode */
+        }
+
+    </style>
+    <script>
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+            // Update the toggle switch state if it exists on the page
+            const darkModeToggleSwitch = document.getElementById('darkModeToggleSwitch');
+            if (darkModeToggleSwitch) {
+                darkModeToggleSwitch.checked = document.documentElement.classList.contains('dark');
+            }
+        }
+        // Apply dark mode on load if previously set
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside id="sidebar" class="sidebar fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform sidebar-closed md:sidebar-open md:relative md:translate-x-0 shadow-lg">
+        <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
+            <a href="index.html" class="flex items-center">
+                <svg class="h-8 w-8 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286Zm0 13.036h.008v.015h-.008v-.015Z" />
+                </svg>
+                <span class="ml-2 text-xl font-semibold text-gray-800 dark:text-white">LeakGuard</span>
+            </a>
+        </div>
+        <nav class="py-4">
+            <a href="index.html" class="flex items-center px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-md">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h7.5" /></svg>
+                <span class="ml-3">Dashboard</span>
+            </a>
+            <a href="alerts.html" class="flex items-center px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-md">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
+                <span class="ml-3">Alerts</span>
+                <span class="ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-200 dark:bg-red-700 dark:text-red-200 rounded-full">12</span>
+            </a>
+            <a href="sources.html" class="flex items-center px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-md">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" /></svg>
+                <span class="ml-3">Sources</span>
+            </a>
+            <a href="reports.html" class="flex items-center px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-md">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" /></svg>
+                <span class="ml-3">Reports</span>
+            </a>
+            <a href="#" class="flex items-center px-6 py-3 rounded-md sidebar-active"> <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.646.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.759 6.759 0 0 1 0 1.255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.6 6.6 0 0 1-.22.128c-.333.183-.582.495-.646.869l-.213 1.28c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.646-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.759 6.759 0 0 1 0-1.255c.008-.378-.137-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.646-.869l.213-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                <span class="ml-3">Settings</span>
+            </a>
+        </nav>
+        </aside>
+
+    <div id="content" class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white dark:bg-gray-800 shadow-sm">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <button id="mobileMenuButton" class="md:hidden text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+                    <div class="hidden md:flex flex-1"></div> <div class="ml-4 flex items-center md:ml-6">
+                        <button class="p-1 rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <span class="sr-only">View notifications</span>
+                            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
+                        </button>
+                        <div class="ml-3 relative">
+                            <div>
+                                <button type="button" class="max-w-xs bg-white dark:bg-gray-800 rounded-full flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
+                                    <span class="sr-only">Open user menu</span>
+                                    <img class="h-8 w-8 rounded-full" src="https://placehold.co/32x32/E0E0E0/B0B0B0?text=U" alt="User avatar">
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6">
+            <div class="container mx-auto">
+                <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Settings</h1>
+
+                <div class="space-y-8">
+                    <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">Profile</h2>
+                        <form class="space-y-6">
+                            <div>
+                                <label for="fullName" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
+                                <input type="text" name="fullName" id="fullName" value="Demo User" class="mt-1 block w-full sm:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+                                <input type="email" name="email" id="email" value="demo@example.com" class="mt-1 block w-full sm:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <h3 class="text-md font-medium text-gray-700 dark:text-gray-300">Change Password</h3>
+                                <div class="mt-2 space-y-4">
+                                    <div>
+                                        <label for="currentPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Current Password</label>
+                                        <input type="password" name="currentPassword" id="currentPassword" class="mt-1 block w-full sm:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label for="newPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">New Password</label>
+                                        <input type="password" name="newPassword" id="newPassword" class="mt-1 block w-full sm:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm New Password</label>
+                                        <input type="password" name="confirmPassword" id="confirmPassword" class="mt-1 block w-full sm:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pt-4">
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800">Save Profile</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">Notifications</h2>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Notifications for New Alerts</label>
+                                <div class="flex items-center space-x-4">
+                                    <span class="text-sm text-gray-500 dark:text-gray-400">Receive email for:</span>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500" checked>
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Critical Alerts</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500" checked>
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">High Alerts</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Medium Alerts</span>
+                                    </label>
+                                </div>
+                            </div>
+                             <div>
+                                <label for="notificationEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notification Email Address</label>
+                                <input type="email" name="notificationEmail" id="notificationEmail" value="alerts-user@example.com" class="mt-1 block w-full sm:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div class="pt-4">
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800">Save Notifications</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">API Key Management</h2>
+                        <div class="space-y-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Use API keys to integrate with external tools or scripts.</p>
+                            <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 p-3 rounded-md">
+                                <input type="text" readonly value="lkgrd_***************************xyz123" class="flex-grow shadow-sm sm:text-sm border-gray-300 rounded-md p-2 bg-gray-200 dark:bg-gray-600 cursor-not-allowed">
+                                <button class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Copy</button>
+                                <button class="text-sm text-red-600 dark:text-red-400 hover:underline">Revoke</button>
+                            </div>
+                            <div>
+                                <button type="button" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800">
+                                    Generate New API Key
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">Appearance</h2>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-md font-medium text-gray-700 dark:text-gray-300">Dark Mode</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Toggle between light and dark themes.</p>
+                            </div>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="darkModeToggle" id="darkModeToggleSwitch" onchange="toggleDarkMode()" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer opacity-0"/>
+                                <label for="darkModeToggleSwitch" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 dark:bg-gray-600 cursor-pointer toggle-bg"></label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">Integrations</h2>
+                        <div class="space-y-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Connect LeakGuard with your favorite tools.</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center space-x-3">
+                                    <img src="https://placehold.co/40x40/7C3AED/FFFFFF?text=S" alt="Slack Logo" class="h-10 w-10 rounded-md">
+                                    <div>
+                                        <h4 class="font-medium text-gray-800 dark:text-white">Slack</h4>
+                                        <button class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Configure</button>
+                                    </div>
+                                </div>
+                                <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center space-x-3">
+                                     <img src="https://placehold.co/40x40/2563EB/FFFFFF?text=J" alt="JIRA Logo" class="h-10 w-10 rounded-md">
+                                    <div>
+                                        <h4 class="font-medium text-gray-800 dark:text-white">JIRA</h4>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Not Connected</p>
+                                    </div>
+                                </div>
+                                <div class="border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 flex items-center justify-center space-x-3 h-full">
+                                    <button class="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-300">
+                                        + Add New Integration
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuButton = document.getElementById('mobileMenuButton');
+
+        mobileMenuButton.addEventListener('click', () => {
+            sidebar.classList.toggle('sidebar-closed');
+            sidebar.classList.toggle('sidebar-open');
+        });
+
+        document.addEventListener('click', (event) => {
+            const isClickInsideSidebar = sidebar.contains(event.target);
+            const isClickOnMenuButton = mobileMenuButton.contains(event.target);
+
+            if (!isClickInsideSidebar && !isClickOnMenuButton && sidebar.classList.contains('sidebar-open') && window.innerWidth < 768) {
+                sidebar.classList.add('sidebar-closed');
+                sidebar.classList.remove('sidebar-open');
+            }
+        });
+        
+        // Initialize dark mode toggle based on localStorage
+        const darkModeToggleSwitch = document.getElementById('darkModeToggleSwitch');
+        if (darkModeToggleSwitch) {
+            darkModeToggleSwitch.checked = document.documentElement.classList.contains('dark');
+        }
+    </script>
+</body>
+</html>

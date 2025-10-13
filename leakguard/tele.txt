@@ -1,0 +1,4 @@
+App api_id: 28362044
+App api_hash: b0eacf843a2e57669a5fe96f8d22c9ba
+
+login socradar adri/cxnw0502
