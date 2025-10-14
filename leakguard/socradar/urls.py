@@ -14,6 +14,7 @@ urlpatterns = [
     path('telegram/process/', views.process_telegram_data, name='process_telegram_data'),
     path('telegram/auto-collect/', views.auto_telegram_collection, name='auto_telegram_collection'),
     path('telegram/scrape/', views.start_telegram_scraping, name='start_telegram_scraping'),
+    path('database-status/', views.database_status, name='database_status'),
     path('api/alerts/', views.get_alerts, name='get_alerts'),
     path('api/alerts/<int:alert_id>/update/', views.update_alert_status, name='update_alert_status'),
 ]

@@ -542,10 +542,44 @@ def start_telegram_scraping(request):
                     )
                     if created:
                         messages_created += 1
+                
+                # Update last scanned timestamp
+                channel.last_scanned = datetime.now()
+                channel.save()
             
             messages.success(request, f'Successfully scraped {messages_created} messages from {active_channels.count()} channels!')
             
         except Exception as e:
             messages.error(request, f'Error during scraping: {str(e)}')
     
-    return redirect('telegram_monitor')   
+    return redirect('telegram_monitor')
+
+@login_required
+def database_status(request):
+    """View to show database status and scraped data"""
+    from api.models import Alert
+    
+    # Get statistics
+    total_channels = TelegramChannel.objects.count()
+    active_channels = TelegramChannel.objects.filter(is_active=True).count()
+    total_messages = TelegramMessage.objects.count()
+    total_data_leaks = DataLeak.objects.count()
+    total_alerts = Alert.objects.filter(user=request.user).count()
+    
+    # Get recent data
+    recent_channels = TelegramChannel.objects.order_by('-created_at')[:10]
+    recent_messages = TelegramMessage.objects.order_by('-created_at')[:10]
+    recent_leaks = DataLeak.objects.order_by('-created_at')[:10]
+    
+    context = {
+        'total_channels': total_channels,
+        'active_channels': active_channels,
+        'total_messages': total_messages,
+        'total_data_leaks': total_data_leaks,
+        'total_alerts': total_alerts,
+        'recent_channels': recent_channels,
+        'recent_messages': recent_messages,
+        'recent_leaks': recent_leaks,
+    }
+    
+    return render(request, 'database_status.html', context)   

@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'socradar.apps.SocradarConfig',
-    # 'django_opensearch_dsl',  # Disabled for now - requires OpenSearch server
+    'django_opensearch_dsl',
     'api',
     'rest_framework',
     'django_filters',
@@ -92,11 +92,11 @@ DATABASES = {
     }
 }
 
-# OPENSEARCH_DSL = {
-#     'default': {
-#         'hosts': 'localhost:9200'
-#     }
-# }
+OPENSEARCH_DSL = {
+    'default': {
+        'hosts': 'localhost:9200'
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -156,7 +156,7 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-# OPENSEARCH_DSL = {"default": {"hosts": "localhost:9200"}}
+# OpenSearch configuration is now above
 
 # REST Framework Configuration
 REST_FRAMEWORK = {

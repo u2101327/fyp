@@ -1,69 +1,132 @@
-# socradar/documents.py
-# OpenSearch integration disabled - requires OpenSearch server running
-# Uncomment when you have OpenSearch/Elasticsearch running
-
-# from django.contrib.auth import get_user_model
-# from django_opensearch_dsl import Document, fields
-# from django_opensearch_dsl.registries import registry
-# from .models import MonitoredCredential, CredentialLeak
-
-# User = get_user_model()
-
-# @registry.register_document
-# class UserDocument(Document):
-#     username    = fields.TextField()
-#     email       = fields.KeywordField()          # exact match / aggregations
-#     email_text  = fields.TextField(attr="email") # full-text on same value
-#     is_active   = fields.BooleanField()
-#     date_joined = fields.DateField()             # ok for DateTimeField
-
-#     class Index:
-#         name = "users"
-#         settings = {"number_of_shards": 1, "number_of_replicas": 0}
-
-#     class Django:
-#         model = User
-#         fields = []  # we declared fields explicitly above
+from django_opensearch_dsl import Document, fields
+from django_opensearch_dsl.registries import registry
+from .models import TelegramChannel, TelegramMessage, DataLeak, MonitoredCredential, CredentialLeak
 
 
-# @registry.register_document
-# class MonitoredCredentialDocument(Document):
-#     # optional: index FK as integer for filtering
-#     owner = fields.IntegerField(attr="owner_id", required=False)
+@registry.register_document
+class TelegramChannelDocument(Document):
+    """OpenSearch document for TelegramChannel model"""
+    
+    class Index:
+        name = 'telegram_channels'
+        settings = {
+            'number_of_shards': 1,
+            'number_of_replicas': 0,
+        }
+    
+    class Django:
+        model = TelegramChannel
+        fields = [
+            'id',
+            'name',
+            'username', 
+            'description',
+            'is_active',
+            'last_scanned',
+            'created_at',
+            'updated_at',
+        ]
 
-#     class Index:
-#         name = "monitored_credentials_v1"
-#         settings = {"number_of_shards": 1, "number_of_replicas": 0}
-#         auto_refresh = True
 
-#     class Django:
-#         model = MonitoredCredential
-#         # must match actual model fields
-#         fields = ["email", "username", "domain", "created_at"]
+@registry.register_document
+class TelegramMessageDocument(Document):
+    """OpenSearch document for TelegramMessage model"""
+    
+    class Index:
+        name = 'telegram_messages'
+        settings = {
+            'number_of_shards': 1,
+            'number_of_replicas': 0,
+        }
+    
+    class Django:
+        model = TelegramMessage
+        fields = [
+            'id',
+            'text',
+            'sender_username',
+            'sender_id',
+            'message_id',
+            'date',
+            'created_at',
+        ]
+        related_models = [TelegramChannel]
 
 
-# @registry.register_document
-# class CredentialLeakDocument(Document):
-#     # JSON list
-#     tags = fields.ListField(fields.KeywordField())
-#     user = fields.IntegerField(attr="user_id")  # optional: FK as int
+@registry.register_document
+class DataLeakDocument(Document):
+    """OpenSearch document for DataLeak model"""
+    
+    class Index:
+        name = 'data_leaks'
+        settings = {
+            'number_of_shards': 1,
+            'number_of_replicas': 0,
+        }
+    
+    class Django:
+        model = DataLeak
+        fields = [
+            'id',
+            'email',
+            'username',
+            'password',
+            'domain',
+            'phone',
+            'source',
+            'source_url',
+            'severity',
+            'leak_date',
+            'raw_data',
+            'is_processed',
+            'created_at',
+        ]
 
-#     class Index:
-#         name = "leaks_v1"
-#         settings = {"number_of_shards": 1, "number_of_replicas": 0}
-#         auto_refresh = True
 
-#     class Django:
-#         model = CredentialLeak
-#         fields = [
-#             "cred_type",
-#             "value",
-#             "source",
-#             "source_url",
-#             "leak_date",
-#             "severity",
-#             "plaintext",
-#             "content",
-#             "created_at",
-#             # 'tags' is declared above
-#         ]
+@registry.register_document
+class MonitoredCredentialDocument(Document):
+    """OpenSearch document for MonitoredCredential model"""
+    
+    class Index:
+        name = 'monitored_credentials'
+        settings = {
+            'number_of_shards': 1,
+            'number_of_replicas': 0,
+        }
+    
+    class Django:
+        model = MonitoredCredential
+        fields = [
+            'id',
+            'email',
+            'username',
+            'domain',
+            'created_at',
+        ]
+
+
+@registry.register_document
+class CredentialLeakDocument(Document):
+    """OpenSearch document for CredentialLeak model"""
+    
+    class Index:
+        name = 'credential_leaks'
+        settings = {
+            'number_of_shards': 1,
+            'number_of_replicas': 0,
+        }
+    
+    class Django:
+        model = CredentialLeak
+        fields = [
+            'id',
+            'cred_type',
+            'value',
+            'source',
+            'source_url',
+            'leak_date',
+            'severity',
+            'plaintext',
+            'content',
+            'created_at',
+        ]
