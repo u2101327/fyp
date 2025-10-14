@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Demo Data Leak Detection</h3>
+                </div>
+                <div class="card-body">
+                    <p class="lead">This demo will simulate different types of data leaks to showcase the alert system.</p>
+                    
+                    <div class="alert alert-info">
+                        <h4>How it works:</h4>
+                        <ol>
+                            <li>Click one of the buttons below to simulate a data leak</li>
+                            <li>The system will create an alert and send an email notification</li>
+                            <li>You'll be redirected to the dashboard to see the new alert</li>
+                        </ol>
+                    </div>
+
+                    <form method="POST" class="mt-4">
+                        {% csrf_token %}
+                        <div class="d-grid gap-3">
+                            <button type="submit" name="leak_type" value="email" class="btn btn-warning btn-lg">
+                                Simulate Email Leak
+                            </button>
+                            <button type="submit" name="leak_type" value="password" class="btn btn-danger btn-lg">
+                                Simulate Password Leak
+                            </button>
+                            <button type="submit" name="leak_type" value="general" class="btn btn-info btn-lg">
+                                Simulate General Leak
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

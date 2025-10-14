@@ -197,3 +197,17 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Or your SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'adrifirhan@gmail.com'
+EMAIL_HOST_PASSWORD = 'Adr1f1rh@n'
+DEFAULT_FROM_EMAIL = 'adrifirhan@gmail.com'
+
+# Telegram API settings
+TELEGRAM_API_ID = 28362044
+TELEGRAM_API_HASH = 'b0eacf843a2e57669a5fe96f8d22c9ba'
+TELEGRAM_PHONE = '+60175861045'  # Replace with your phone number

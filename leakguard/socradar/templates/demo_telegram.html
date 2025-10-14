@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Demo Telegram Data Collection</h3>
+                </div>
+                <div class="card-body">
+                    <p class="lead">This demo will create sample Telegram channels and messages to test the credential monitoring system.</p>
+                    
+                    <div class="alert alert-info">
+                        <h4>What this demo does:</h4>
+                        <ol>
+                            <li>Creates demo Telegram channels</li>
+                            <li>Adds sample messages containing credentials (including your email)</li>
+                            <li>You can then process these messages to see how alerts are generated</li>
+                        </ol>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <strong>Note:</strong> This will create demo data in your database. The messages will contain your email address with demo passwords.
+                    </div>
+
+                    <form method="POST" class="mt-4">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            Create Demo Telegram Data
+                        </button>
+                    </form>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'telegram_monitor' %}" class="btn btn-secondary">
+                            Back to Telegram Monitor
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
