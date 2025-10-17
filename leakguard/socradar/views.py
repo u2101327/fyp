@@ -50,6 +50,7 @@ def loginPage(request):
 def dashboard(request):
     from api.models import Alert
     
+    # Get monitored credentials
     rows = []
     for mc in MonitoredCredential.objects.filter(owner=request.user):
         if mc.email:
@@ -62,11 +63,29 @@ def dashboard(request):
     # Get recent alerts
     alerts = Alert.objects.filter(user=request.user).order_by('-created_at')[:10]
     new_alerts_count = Alert.objects.filter(user=request.user, is_read=False).count()
+    
+    # Get monitored channels (active Telegram channels)
+    monitored_channels = TelegramChannel.objects.filter(is_active=True).order_by('-created_at')
+    monitored_sources_count = monitored_channels.count()
+    
+    # Get recent data leaks
+    recent_leaks = DataLeak.objects.order_by('-created_at')[:5]
+    total_leaks = DataLeak.objects.count()
+    
+    # Get recent messages
+    recent_messages = TelegramMessage.objects.order_by('-created_at')[:5]
+    total_messages = TelegramMessage.objects.count()
 
     context = {
         "monitored_credentials": rows,
         "alerts": alerts,
-        "new_alerts_count": new_alerts_count
+        "new_alerts_count": new_alerts_count,
+        "monitored_channels": monitored_channels,
+        "monitored_sources_count": monitored_sources_count,
+        "recent_leaks": recent_leaks,
+        "total_leaks": total_leaks,
+        "recent_messages": recent_messages,
+        "total_messages": total_messages,
     }
     return render(request, 'dashboard.html', context)
 

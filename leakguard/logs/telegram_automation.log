@@ -1240,3 +1240,88 @@
 2025-10-17 11:31:07,308 - scripts.storage.opensearch_url_service - ERROR - Error retrieving crawled URLs: NotFoundError(404, 'index_not_found_exception', 'no such index [crawled-telegram-urls]', crawled-telegram-urls, index_or_alias)
 2025-10-17 11:47:32,735 - django.request - WARNING - Not Found: /favicon.ico
 2025-10-17 12:11:15,808 - django.utils.autoreload - INFO - D:\fyp\leakguard\socradar\views.py changed, reloading.
+2025-10-17 14:19:02,115 - scripts.telegram.telegram_automation - INFO - Fetching Telegram links from GitHub...
+2025-10-17 14:19:02,437 - scripts.telegram.telegram_automation - INFO - Found 94 Telegram links
+2025-10-17 14:19:02,463 - telethon.network.mtprotosender - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-10-17 14:19:04,548 - telethon.network.mtprotosender - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-10-17 14:19:05,446 - telethon.client.users - INFO - Phone migrated to 5
+2025-10-17 14:19:05,625 - telethon.client.telegrambaseclient - INFO - Reconnecting to new data center 5
+2025-10-17 14:19:05,816 - telethon.network.mtprotosender - INFO - Disconnecting from 149.154.167.51:443/TcpFull...
+2025-10-17 14:19:05,817 - telethon.network.mtprotosender - INFO - Disconnection from 149.154.167.51:443/TcpFull complete!
+2025-10-17 14:19:05,817 - telethon.network.mtprotosender - INFO - Connecting to 91.108.56.150:443/TcpFull...
+2025-10-17 14:19:06,826 - telethon.network.mtprotosender - INFO - Connection to 91.108.56.150:443/TcpFull complete!
+2025-10-17 14:19:17,439 - scripts.telegram.telegram_link_validator - INFO - Telegram validation client started
+2025-10-17 14:19:17,947 - telethon.client.users - INFO - Sleeping for 5s (0:00:05) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:17,954 - telethon.client.users - INFO - Sleeping early for 5s (0:00:05) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:17,958 - telethon.client.users - INFO - Sleeping early for 5s (0:00:05) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:17,958 - telethon.client.users - INFO - Sleeping for 5s (0:00:05) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:17,974 - telethon.client.users - INFO - Sleeping early for 5s (0:00:05) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:23,090 - telethon.client.users - INFO - Sleeping for 55s (0:00:55) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:23,095 - telethon.client.users - INFO - Sleeping early for 55s (0:00:55) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:23,101 - telethon.client.users - INFO - Sleeping early for 55s (0:00:55) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:23,109 - telethon.client.users - INFO - Sleeping for 55s (0:00:55) on ResolveUsernameRequest flood wait
+2025-10-17 14:19:23,110 - telethon.client.users - INFO - Sleeping for 55s (0:00:55) on ResolveUsernameRequest flood wait
+2025-10-17 14:20:18,326 - scripts.telegram.telegram_link_validator - INFO - Validation complete: 40 active, 54 inactive
+2025-10-17 14:20:18,326 - scripts.telegram.telegram_link_validator - INFO - Inactive: @banklogplug2 - error
+2025-10-17 14:20:18,326 - scripts.telegram.telegram_link_validator - INFO - Inactive: @bradmax_cloud - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @CloudLogsPrivate - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @database_leak - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @eliteband - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @fatecloud - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @HUBLOGS - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @joinchat - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @leaklogs_official - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @MarkLogsBot - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @marvelcloudRB - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @Moon_Log - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @Privatedata77new - invalid_format
+2025-10-17 14:20:18,327 - scripts.telegram.telegram_link_validator - INFO - Inactive: @redlogscloud - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @Stealers_Logs_Group - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @WillieCloudFreeLogs - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @worldwidelogs - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @StarLinkCloud - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @ArenaCloudFree - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @OBSERVERINFO - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @dnftm_cloud - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @segacloud - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @DarkSideCloud - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @chrono_logs - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @logs_cloud_free_true - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @stormcloudlogs - invalid_format
+2025-10-17 14:20:18,328 - scripts.telegram.telegram_link_validator - INFO - Inactive: @HelloKittyCloud - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @solariscloud - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @dragoncloud1 - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @OCTOPUSCLOUDLOGS - error
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @TinyLogs - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @powercloudlogs - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @gameslogscloud - error
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @wlfrcloud - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @LulzsecCloudLogs - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @werd1kcloud - error
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @SamuraiCloud - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @free_logs_cloud_ArtHouse - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @ganjacloud - invalid_format
+2025-10-17 14:20:18,329 - scripts.telegram.telegram_link_validator - INFO - Inactive: @enigmaLogS - error
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @Redscritp - error
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @stonecloudtg - error
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @mooncloudfree - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @ATM_LOGS - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @Logs_Tizix - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @MaisonMarjelaCloud - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @miragelogscloud - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @wingsdailyurl - error
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @txtlogtop - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @txtlogcloudd - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @txtbaseslog - invalid_format
+2025-10-17 14:20:18,330 - scripts.telegram.telegram_link_validator - INFO - Inactive: @anuriacloud - error
+2025-10-17 14:20:18,331 - scripts.telegram.telegram_link_validator - INFO - Inactive: @txtloggg - invalid_format
+2025-10-17 14:20:18,331 - scripts.telegram.telegram_link_validator - INFO - Inactive: @chatcloudcasper - error
+2025-10-17 14:20:18,331 - scripts.telegram.telegram_link_validator - INFO - Validation summary: {'total': 94, 'active': 40, 'inactive': 54, 'not_found': 0, 'private': 0, 'invalid_format': 44, 'rate_limited': 0, 'error': 10}
+2025-10-17 14:20:18,331 - telethon.network.mtprotosender - INFO - Disconnecting from 91.108.56.150:443/TcpFull...
+2025-10-17 14:20:18,331 - telethon.network.mtprotosender - INFO - Disconnection from 91.108.56.150:443/TcpFull complete!
+2025-10-17 14:20:18,456 - opensearch - WARNING - PUT http://localhost:9200/crawled-telegram-urls [status:400 request:0.102s]
+2025-10-17 14:20:18,456 - scripts.storage.opensearch_url_service - ERROR - Error creating indices: RequestError(400, 'mapper_parsing_exception', 'unknown parameter [default] on mapper [leak_count] of type [integer]')
+2025-10-17 14:20:18,456 - scripts.storage.opensearch_url_service - ERROR - Error saving crawled URLs to OpenSearch: RequestError(400, 'mapper_parsing_exception', 'unknown parameter [default] on mapper [leak_count] of type [integer]')
+2025-10-17 14:22:05,554 - opensearch - WARNING - POST http://localhost:9200/crawled-telegram-urls/_search [status:404 request:0.035s]
+2025-10-17 14:22:05,554 - scripts.storage.opensearch_url_service - ERROR - Error retrieving crawled URLs: NotFoundError(404, 'index_not_found_exception', 'no such index [crawled-telegram-urls]', crawled-telegram-urls, index_or_alias)
+2025-10-17 14:24:46,123 - django.utils.autoreload - INFO - D:\fyp\leakguard\socradar\views.py changed, reloading.

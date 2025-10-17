@@ -295,7 +295,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Monitored Sources</p>
-                                <p id="monitoredSourcesCount" class="text-2xl font-semibold text-gray-800 dark:text-white">0</p>
+                                <p id="monitoredSourcesCount" class="text-2xl font-semibold text-gray-800 dark:text-white">{{ monitored_sources_count }}</p>
                             </div>
                         </div>
                     </div>
@@ -322,8 +322,8 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Resolved Issues</p>
-                                <p id="resolvedIssuesCount" class="text-2xl font-semibold text-gray-800 dark:text-white">0</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Data Leaks Found</p>
+                                <p id="resolvedIssuesCount" class="text-2xl font-semibold text-gray-800 dark:text-white">{{ total_leaks }}</p>
                             </div>
                         </div>
                     </div>
@@ -336,8 +336,8 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Last Scan</p>
-                                <p id="lastScanTime" class="text-2xl font-semibold text-gray-800 dark:text-white">Never</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Messages Collected</p>
+                                <p id="lastScanTime" class="text-2xl font-semibold text-gray-800 dark:text-white">{{ total_messages }}</p>
                             </div>
                         </div>
                     </div>
@@ -533,6 +533,42 @@
                             </div>
                     </div>
                 </div>
+
+                <!-- Monitored Channels Section -->
+                {% if monitored_channels %}
+                <div class="mt-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Monitored Telegram Channels</h3>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                {{ monitored_sources_count }} Active
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {% for channel in monitored_channels %}
+                            <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-medium text-gray-900 dark:text-white">@{{ channel.username }}</h4>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        Active
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">{{ channel.name }}</p>
+                                {% if channel.description %}
+                                <p class="text-xs text-gray-500 dark:text-gray-500 mb-2">{{ channel.description|truncatechars:60 }}</p>
+                                {% endif %}
+                                <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                    <span>Added: {{ channel.created_at|date:"M d, Y" }}</span>
+                                    {% if channel.last_scanned %}
+                                    <span>Last scan: {{ channel.last_scanned|date:"M d" }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </main>
     </div>
@@ -625,27 +661,10 @@
             
             // Clear form after successful submission
             clearForm();
-            
-            // Update dashboard counters (mock data)
-            updateDashboardCounters();
         });
-
-        // Update dashboard counters with mock data
-        function updateDashboardCounters() {
-            // These would normally come from your backend API
-            document.getElementById('monitoredSourcesCount').textContent = Math.floor(Math.random() * 10) + 1;
-            document.getElementById('activeAlertsCount').textContent = Math.floor(Math.random() * 5);
-            document.getElementById('resolvedIssuesCount').textContent = Math.floor(Math.random() * 20) + 5;
-            document.getElementById('lastScanTime').textContent = new Date().toLocaleTimeString();
-        }
 
         // Initialize dashboard on load
         document.addEventListener('DOMContentLoaded', function() {
-            updateDashboardCounters();
-            
-            // Update counters every 30 seconds (mock real-time updates)
-            setInterval(updateDashboardCounters, 30000);
-            
             // Initialize data sources dropdown
             initializeSourcesDropdown();
         });
