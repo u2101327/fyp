@@ -93,3 +93,32 @@ class DataLeak(models.Model):
 
     def __str__(self):
         return f"{self.email or self.username} - {self.source}"
+
+class CrawledURL(models.Model):
+    """Model to track URLs crawled from GitHub for investigation purposes"""
+    url = models.URLField()
+    username = models.CharField(max_length=255)
+    channel_name = models.CharField(max_length=255, blank=True)
+    source = models.CharField(max_length=100, default='github')
+    source_url = models.URLField(blank=True)
+    crawl_session_id = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    credential_leaks_found = models.BooleanField(default=False)
+    leak_count = models.IntegerField(default=0)
+    investigation_notes = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    crawled_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['username', 'crawl_session_id']
+        ordering = ['-crawled_at']
+
+    def __str__(self):
+        return f"@{self.username} - {self.source}"
+
+    @property
+    def telegram_channel_url(self):
+        """Return the Telegram channel URL for easy access"""
+        return f"https://t.me/{self.username}"

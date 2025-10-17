@@ -77,7 +77,16 @@
         <!-- Automated Collection -->
         <div class="bg-white shadow rounded-lg p-6 mb-8">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Automated Collection</h2>
-            <p class="text-gray-600 mb-4">Automatically crawl GitHub for Telegram links and collect data</p>
+            <p class="text-gray-600 mb-4">Automatically crawl GitHub for Telegram links, validate their activity, and collect data</p>
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 class="text-sm font-semibold text-blue-900 mb-2">🔍 Link Validation Process:</h3>
+                <ul class="text-sm text-blue-800 space-y-1">
+                    <li>• <strong>Extract:</strong> Find all Telegram links from GitHub repository</li>
+                    <li>• <strong>Validate:</strong> Check if each link is active and accessible</li>
+                    <li>• <strong>Filter:</strong> Only save active channels (expired/inactive links are discarded)</li>
+                    <li>• <strong>Store:</strong> Save validated links to both Django database and OpenSearch</li>
+                </ul>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <form method="POST" action="{% url 'auto_telegram_collection' %}">
                     {% csrf_token %}
@@ -106,7 +115,7 @@
         <div class="bg-white shadow rounded-lg p-6 mb-8">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Process Telegram Data</h2>
             <p class="text-gray-600 mb-4">Scan recent messages from all monitored channels for credential leaks</p>
-            <div class="flex space-x-4">
+            <div class="flex flex-wrap gap-4">
                 <form method="POST" action="{% url 'process_telegram_data' %}">
                     {% csrf_token %}
                     <button type="submit" 
@@ -123,6 +132,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
                     Create Demo Data
+                </a>
+                <a href="{% url 'crawled_urls_investigation' %}" 
+                   class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Investigate Crawled URLs
                 </a>
             </div>
         </div>
@@ -173,11 +189,17 @@
             <h3 class="text-lg font-semibold text-blue-900 mb-2">Automated Collection Process:</h3>
             <ol class="list-decimal list-inside space-y-2 text-blue-800">
                 <li><strong>Auto-Collect from GitHub:</strong> Crawls the deepdarkCTI repository to extract Telegram links automatically</li>
-                <li><strong>Start Scraping Messages:</strong> Joins the discovered channels and scrapes messages (simulated in demo)</li>
+                <li><strong>Link Validation:</strong> Validates each link to ensure it's active and accessible (filters out expired/inactive links)</li>
+                <li><strong>Start Scraping Messages:</strong> Joins the validated channels and scrapes messages (simulated in demo)</li>
                 <li><strong>Process Recent Messages:</strong> Scans all collected messages for credential leaks</li>
                 <li><strong>Alert Generation:</strong> Creates alerts and sends email notifications when your credentials are found</li>
                 <li><strong>Dashboard Integration:</strong> View all alerts and monitoring status on your dashboard</li>
             </ol>
+            
+            <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                <h4 class="font-semibold text-green-800 mb-2">✅ Quality Assurance:</h4>
+                <p class="text-green-700">The system now validates all Telegram links before saving them. Only active, accessible channels are stored in the database, ensuring you only investigate channels that actually exist and can be accessed.</p>
+            </div>
             
             <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
                 <h4 class="font-semibold text-yellow-800 mb-2">Manual Option:</h4>

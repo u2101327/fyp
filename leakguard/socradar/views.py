@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import authenticate, login, logout
@@ -7,6 +7,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.utils import timezone
+from django.db import models
 from datetime import datetime, timedelta
 # from .documents import CredentialLeakDocument, MonitoredCredentialDocument  # Disabled - requires OpenSearch
 
@@ -318,77 +320,12 @@ def telegram_monitor(request):
 @login_required
 def process_telegram_data(request):
     """Process Telegram data and create alerts for found credentials"""
-    from data_processor import CredentialProcessor
-    from api.models import Alert
+    from scripts.matching.credential_matcher import CredentialMatcher
     
     if request.method == 'POST':
-        # Get recent messages from all channels
-        recent_messages = TelegramMessage.objects.filter(
-            channel__is_active=True,
-            created_at__gte=datetime.now() - timedelta(hours=24)
-        ).order_by('-created_at')[:100]
-        
-        processor = CredentialProcessor()
-        alerts_created = 0
-        
-        for message in recent_messages:
-            # Process the message text line by line
-            credentials = []
-            for line in message.text.split('\n'):
-                cred = processor.process_line(line)
-                if cred:
-                    credentials.append(cred)
-            
-            for cred in credentials:
-                # Check if this credential matches any monitored credentials
-                monitored_creds = MonitoredCredential.objects.filter(owner=request.user)
-                
-                for monitored in monitored_creds:
-                    is_match = False
-                    matched_value = ""
-                    
-                    if monitored.email and cred.get('email') == monitored.email:
-                        is_match = True
-                        matched_value = monitored.email
-                    elif monitored.username and cred.get('username') == monitored.username:
-                        is_match = True
-                        matched_value = monitored.username
-                    elif monitored.domain and cred.get('domain') == monitored.domain:
-                        is_match = True
-                        matched_value = monitored.domain
-                    
-                    if is_match:
-                        # Create data leak record
-                        data_leak = DataLeak.objects.create(
-                            email=cred.get('email', ''),
-                            username=cred.get('username', ''),
-                            password=cred.get('password', ''),
-                            domain=cred.get('domain', ''),
-                            source=f'Telegram: {message.channel.username}',
-                            source_url=message.channel.url,
-                            severity=cred.get('severity', 'medium'),
-                            telegram_message=message,
-                            raw_data=cred.get('raw_data', message.text),
-                            is_processed=True
-                        )
-                        
-                        # Create alert
-                        title = f"Credential Found in Telegram Channel"
-                        message_text = f"Your credential '{matched_value}' was found in Telegram channel @{message.channel.username}. "
-                        if cred.get('password'):
-                            message_text += "Password was also exposed!"
-                            priority = 'critical'
-                        else:
-                            priority = 'high'
-                        
-                        create_alert(
-                            user=request.user,
-                            title=title,
-                            message=message_text,
-                            priority=priority
-                        )
-                        
-                        alerts_created += 1
+        # Use the enhanced credential matcher
+        matcher = CredentialMatcher()
+        alerts_created = matcher.process_matches_for_user(request.user.id, hours_back=24)
         
         if alerts_created > 0:
             messages.success(request, f'Processed Telegram data and created {alerts_created} alerts!')
@@ -396,6 +333,103 @@ def process_telegram_data(request):
             messages.info(request, 'No matching credentials found in recent Telegram messages.')
     
     return redirect('telegram_monitor')
+
+@login_required
+def investigate_alert(request, alert_id):
+    """Allow users to investigate alerts by fetching raw files from MinIO"""
+    from api.models import Alert
+    from scripts.storage.minio_client import LeakGuardMinioClient
+    
+    alert = get_object_or_404(Alert, id=alert_id, user=request.user)
+    
+    raw_file_url = None
+    source_document = None
+    
+    if alert.credential_leak and alert.credential_leak.metadata:
+        try:
+            minio_client = LeakGuardMinioClient()
+            metadata = alert.credential_leak.metadata
+            
+            channel_id = metadata.get('channel_id')
+            message_id = metadata.get('message_id')
+            
+            if channel_id and message_id:
+                # Get presigned URL for raw message file
+                raw_file_url = minio_client.get_telegram_message_url(
+                    channel_id=channel_id,
+                    message_id=message_id,
+                    expires_in_seconds=3600
+                )
+                
+                # Get source document from OpenSearch
+                from config.opensearch_config import OPENSEARCH_CONFIG
+                from opensearchpy import OpenSearch
+                
+                opensearch_client = OpenSearch(**OPENSEARCH_CONFIG)
+                query = {
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"channel_id": channel_id}},
+                                {"term": {"message_id": message_id}}
+                            ]
+                        }
+                    }
+                }
+                
+                results = opensearch_client.search(
+                    index="telegram-extracted-data",
+                    body=query,
+                    size=1
+                )
+                
+                if results['hits']['hits']:
+                    source_document = results['hits']['hits'][0]['_source']
+                    
+        except Exception as e:
+            messages.error(request, f'Error accessing raw data: {str(e)}')
+    
+    context = {
+        'alert': alert,
+        'raw_file_url': raw_file_url,
+        'source_document': source_document
+    }
+    return render(request, 'investigate_alert.html', context)
+
+@login_required
+@require_POST
+def mark_alert_read(request, alert_id):
+    """Mark an alert as read"""
+    from api.models import Alert
+    
+    alert = get_object_or_404(Alert, id=alert_id, user=request.user)
+    alert.is_read = True
+    alert.read_at = timezone.now()
+    alert.save()
+    
+    messages.success(request, 'Alert marked as read.')
+    return redirect('investigate_alert', alert_id=alert_id)
+
+@login_required
+@require_POST
+def resolve_alert(request, alert_id):
+    """Resolve an alert"""
+    from api.models import Alert
+    
+    alert = get_object_or_404(Alert, id=alert_id, user=request.user)
+    resolution = request.POST.get('resolution', 'resolved')
+    
+    alert.is_resolved = True
+    alert.resolved_at = timezone.now()
+    
+    if alert.credential_leak:
+        alert.credential_leak.status = resolution
+        alert.credential_leak.save()
+    
+    alert.save()
+    
+    messages.success(request, f'Alert marked as {resolution}.')
+    return redirect('investigate_alert', alert_id=alert_id)
 
 @login_required
 def demo_telegram_collection(request):
@@ -457,9 +491,12 @@ def auto_telegram_collection(request):
             # Import the automation components
             import sys
             import os
+            from datetime import datetime
             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             
-            from telegram_automation import GitHubLinkExtractor, TelegramCollector, TelegramConfig
+            from scripts.telegram.telegram_automation import GitHubLinkExtractor, TelegramCollector, TelegramConfig
+            from scripts.storage.opensearch_url_service import OpenSearchURLService
+            from socradar.models import CrawledURL
             
             # Get Telegram credentials from settings or environment
             api_id = getattr(settings, 'TELEGRAM_API_ID', None) or os.getenv('TELEGRAM_API_ID')
@@ -478,39 +515,164 @@ def auto_telegram_collection(request):
                 messages.warning(request, 'No Telegram links found on GitHub page.')
                 return redirect('telegram_monitor')
             
-            # Step 2: Add channels to database
+            # Step 2: Validate links to check if they are active
+            from scripts.telegram.telegram_link_validator import validate_telegram_links
+            import asyncio
+            
+            # Run validation in async context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                validated_links = loop.run_until_complete(
+                    validate_telegram_links(telegram_links, int(api_id), api_hash, phone_number)
+                )
+            finally:
+                loop.close()
+            
+            if not validated_links:
+                messages.warning(request, 'No active Telegram links found after validation.')
+                return redirect('telegram_monitor')
+            
+            # Generate unique crawl session ID
+            crawl_session_id = f"crawl_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Step 3: Save validated URLs to OpenSearch
+            opensearch_service = OpenSearchURLService()
+            opensearch_success = opensearch_service.save_crawled_urls(validated_links, crawl_session_id)
+            
+            # Step 4: Save validated URLs to Django database
+            django_urls_saved = 0
+            for link in validated_links:
+                crawled_url, created = CrawledURL.objects.get_or_create(
+                    username=link['username'],
+                    crawl_session_id=crawl_session_id,
+                    defaults={
+                        'url': link['url'],
+                        'channel_name': link.get('channel_name', link['username']),
+                        'source': link.get('source', 'github'),
+                        'source_url': link.get('source_url', ''),
+                        'description': link.get('description', f'Auto-crawled from {link.get("source", "github")}'),
+                        'metadata': link.get('metadata', {}),
+                        'is_active': True
+                    }
+                )
+                if created:
+                    django_urls_saved += 1
+            
+            # Step 5: Add channels to TelegramChannel database
             channels_added = 0
-            for link in telegram_links:
+            for link in validated_links:
                 channel, created = TelegramChannel.objects.get_or_create(
                     username=link['username'],
                     defaults={
-                        'name': link['username'],
+                        'name': link.get('title', link['username']),
                         'url': link['url'],
-                        'description': f'Auto-added from {link["source"]}',
+                        'description': link.get('description', f'Auto-added from {link["source"]}'),
                         'is_active': True
                     }
                 )
                 if created:
                     channels_added += 1
+                    
+                    # Save channel to OpenSearch as well
+                    channel_data = {
+                        'id': channel.id,
+                        'name': channel.name,
+                        'username': channel.username,
+                        'url': channel.url,
+                        'description': channel.description,
+                        'is_active': channel.is_active,
+                        'created_at': channel.created_at.isoformat() if channel.created_at else None,
+                        'updated_at': channel.updated_at.isoformat() if channel.updated_at else None,
+                        'last_scanned': channel.last_scanned.isoformat() if channel.last_scanned else None,
+                        'crawl_session_id': crawl_session_id
+                    }
+                    opensearch_service.save_telegram_channel(channel_data)
             
-            messages.success(request, f'Successfully added {channels_added} Telegram channels from GitHub!')
+            # Prepare success message with validation info
+            total_found = len(telegram_links)
+            active_found = len(validated_links)
+            inactive_count = total_found - active_found
             
-            # Step 3: Start Telegram collection (this would run in background)
+            success_parts = []
+            if opensearch_success:
+                success_parts.append(f"Saved {active_found} active URLs to OpenSearch")
+            if django_urls_saved > 0:
+                success_parts.append(f"Saved {django_urls_saved} URLs to Django database")
+            if channels_added > 0:
+                success_parts.append(f"Added {channels_added} new Telegram channels")
+            
+            if success_parts:
+                message = f'Successfully completed auto-collection! {". ".join(success_parts)}.'
+                if inactive_count > 0:
+                    message += f" ({inactive_count} inactive/expired links were filtered out.)"
+                messages.success(request, message)
+            else:
+                messages.info(request, 'Auto-collection completed. All URLs were already in the database.')
+            
+            # Step 5: Start Telegram collection (this would run in background)
             # For demo purposes, we'll just show the channels were added
             # In production, you'd want to run this as a background task
             
         except Exception as e:
             messages.error(request, f'Error during automated collection: {str(e)}')
+            import traceback
+            print(f"Auto collection error: {traceback.format_exc()}")
     
     return redirect('telegram_monitor')
+
+@login_required
+def crawled_urls_investigation(request):
+    """Display crawled URLs for investigation purposes"""
+    from socradar.models import CrawledURL
+    from scripts.storage.opensearch_url_service import OpenSearchURLService
+    
+    # Get crawled URLs from Django database
+    crawled_urls = CrawledURL.objects.all().order_by('-crawled_at')
+    
+    # Get additional data from OpenSearch if available
+    opensearch_urls = []
+    try:
+        opensearch_service = OpenSearchURLService()
+        opensearch_urls = opensearch_service.get_crawled_urls(limit=100)
+    except Exception as e:
+        print(f"Could not fetch OpenSearch data: {e}")
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        crawled_urls = crawled_urls.filter(
+            models.Q(username__icontains=search_query) |
+            models.Q(channel_name__icontains=search_query) |
+            models.Q(description__icontains=search_query)
+        )
+    
+    # Filter by leak status
+    leak_filter = request.GET.get('leak_filter', '')
+    if leak_filter == 'with_leaks':
+        crawled_urls = crawled_urls.filter(credential_leaks_found=True)
+    elif leak_filter == 'without_leaks':
+        crawled_urls = crawled_urls.filter(credential_leaks_found=False)
+    
+    context = {
+        'crawled_urls': crawled_urls,
+        'opensearch_urls': opensearch_urls,
+        'search_query': search_query,
+        'leak_filter': leak_filter,
+        'total_urls': crawled_urls.count(),
+        'urls_with_leaks': crawled_urls.filter(credential_leaks_found=True).count(),
+    }
+    
+    return render(request, 'crawled_urls_investigation.html', context)
 
 @login_required
 def start_telegram_scraping(request):
     """Start the Telegram scraping process"""
     if request.method == 'POST':
         try:
-            # This would typically run as a background task
-            # For now, we'll create a simple version that processes existing channels
+            # Import the automated scraper
+            from scripts.telegram.automated_telegram_scraper import run_automated_scraping_sync
+            from scripts.tasks.celery_tasks import run_telegram_scraper
             
             # Get active channels
             active_channels = TelegramChannel.objects.filter(is_active=True)
@@ -519,35 +681,25 @@ def start_telegram_scraping(request):
                 messages.warning(request, 'No active channels to scrape. Add some channels first.')
                 return redirect('telegram_monitor')
             
-            # Create some demo messages for active channels
-            messages_created = 0
-            for channel in active_channels:
-                # Create demo messages with various credential formats
-                demo_messages = [
-                    f'user@example.com:password123\nadmin@test.com:admin123\n{request.user.email}:demo_password',
-                    f'john.doe@company.com:secret123\n{request.user.email}:leaked_password\nuser@domain.com:password456',
-                    f'test@university.edu:student123\n{request.user.email}:academic_password\nprof@school.edu:teacher123'
-                ]
-                
-                for i, msg_text in enumerate(demo_messages):
-                    # Use get_or_create to avoid duplicate constraint errors
-                    message, created = TelegramMessage.objects.get_or_create(
-                        channel=channel,
-                        message_id=1000 + i,
-                        defaults={
-                            'text': msg_text,
-                            'date': datetime.now(),
-                            'sender_username': 'scraper_bot'
-                        }
-                    )
-                    if created:
-                        messages_created += 1
-                
-                # Update last scanned timestamp
-                channel.last_scanned = datetime.now()
-                channel.save()
+            # Get channel usernames for scraping
+            channel_usernames = list(active_channels.values_list('username', flat=True))
             
-            messages.success(request, f'Successfully scraped {messages_created} messages from {active_channels.count()} channels!')
+            # Start scraping as a background task
+            try:
+                # Try to run as Celery task first
+                task = run_telegram_scraper.delay(channel_usernames)
+                messages.success(request, f'Started scraping {len(channel_usernames)} channels as background task. Task ID: {task.id}')
+            except Exception as celery_error:
+                # Fallback to synchronous scraping if Celery is not available
+                messages.info(request, 'Running scraping synchronously (Celery not available)')
+                
+                try:
+                    # Use the automated scraper (limit to 5 channels for synchronous operation)
+                    limited_channels = channel_usernames[:5]
+                    run_automated_scraping_sync(limited_channels)
+                    messages.success(request, f'Successfully scraped {len(limited_channels)} channels!')
+                except Exception as scraping_error:
+                    messages.error(request, f'Error during scraping: {str(scraping_error)}')
             
         except Exception as e:
             messages.error(request, f'Error during scraping: {str(e)}')

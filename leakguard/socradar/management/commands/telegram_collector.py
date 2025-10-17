@@ -172,3 +172,4 @@ class Command(BaseCommand):
         finally:
             await collector.stop()
             self.stdout.write('Telegram client disconnected')
+

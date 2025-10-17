@@ -51,6 +51,12 @@ class TelegramMessageDocument(Document):
             'created_at',
         ]
         related_models = [TelegramChannel]
+    
+    def get_instances_from_related(self, related_instance):
+        """Get instances from related models"""
+        if isinstance(related_instance, TelegramChannel):
+            return related_instance.messages.all()
+        return None
 
 
 @registry.register_document

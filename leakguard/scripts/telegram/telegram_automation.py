@@ -26,7 +26,7 @@ from django.conf import settings
 import sys
 
 # Add the project root to Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'leakguard.settings')
 django.setup()
 
@@ -37,7 +37,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('telegram_automation.log'),
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'logs', 'telegram_automation.log')),
         logging.StreamHandler()
     ]
 )
@@ -92,7 +92,15 @@ class GitHubLinkExtractor:
                     links.append({
                         'username': username,
                         'url': f'https://t.me/{username}',
-                        'source': 'deepdarkCTI'
+                        'source': 'deepdarkCTI',
+                        'source_url': self.github_url,
+                        'description': f'Auto-crawled from deepdarkCTI GitHub repository',
+                        'channel_name': username,
+                        'metadata': {
+                            'extraction_method': 'github_automation',
+                            'validation_status': 'pending',
+                            'crawl_timestamp': datetime.now(timezone.utc).isoformat()
+                        }
                     })
         
         # Remove duplicates
