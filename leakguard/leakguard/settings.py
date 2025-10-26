@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-fuk43h^s+bfn9*6=8mky@1u4f+g%vp=t^y=tcw19meplhq0fz_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
 
 # Application definition
@@ -86,12 +86,25 @@ WSGI_APPLICATION = 'leakguard.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Use PostgreSQL in production/Docker, SQLite for local development
+if os.environ.get('DATABASE_URL'):
+    # Production/Docker environment with PostgreSQL
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
     }
-}
+else:
+    # Local development with PostgreSQL (fallback to SQLite if PostgreSQL not available)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'leakguard',
+            'USER': 'leakguard',
+            'PASSWORD': 'leakguard123',
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
+    }
 
 OPENSEARCH_DSL = {
     'default': {
@@ -154,6 +167,18 @@ MEDIA_ROOT = BASE_DIR / "media"
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
+
+# OpenSearch Configuration
+OPENSEARCH_DSL = {
+    'default': {
+        'hosts': ['opensearch-node1:9200', 'opensearch-node2:9200'],
+        'http_auth': ('admin', 'admin'),
+        'use_ssl': False,
+        'verify_certs': False,
+        'ssl_assert_hostname': False,
+        'ssl_show_warn': False,
+    },
+}
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
@@ -214,8 +239,8 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # Celery Configuration (for background tasks)
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

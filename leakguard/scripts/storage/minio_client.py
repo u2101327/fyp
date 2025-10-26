@@ -1,166 +1,229 @@
 """
-MinIO client for LeakGuard system
-Handles file storage and retrieval for investigation purposes
+LeakGuard MinIO Client for file storage
+Handles uploading and managing files in MinIO object storage
 """
 
 import os
-import json
-import io
+import hashlib
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from pathlib import Path
+from typing import Optional
 from minio import Minio
 from minio.error import S3Error
 import logging
 
-from config.minio_config import MINIO_CONFIG, BUCKET_CONFIGS, FILE_PATHS
-
 logger = logging.getLogger(__name__)
 
 class LeakGuardMinioClient:
-    """MinIO client for LeakGuard file operations"""
+    """MinIO client for LeakGuard file storage operations"""
     
     def __init__(self):
-        self.client = Minio(**MINIO_CONFIG)
-        self._ensure_buckets_exist()
+        """Initialize MinIO client with environment variables"""
+        self.endpoint = os.getenv('MINIO_ENDPOINT', 'minio:9000')
+        self.access_key = os.getenv('MINIO_ACCESS_KEY', 'admin123')
+        self.secret_key = os.getenv('MINIO_SECRET_KEY', 'admin123456')
+        self.secure = False  # Set to True for HTTPS
+        
+        # Initialize MinIO client
+        self.client = Minio(
+            self.endpoint,
+            access_key=self.access_key,
+            secret_key=self.secret_key,
+            secure=self.secure
+        )
+        
+        # Default bucket for leaks
+        self.bucket_name = 'leaks'
+        
+        # Ensure bucket exists
+        self._ensure_bucket_exists()
     
-    def _ensure_buckets_exist(self):
-        """Ensure all required buckets exist"""
-        for bucket_config in BUCKET_CONFIGS.values():
-            bucket_name = bucket_config['name']
-            try:
-                if not self.client.bucket_exists(bucket_name):
-                    self.client.make_bucket(bucket_name)
-                    logger.info(f"Created bucket: {bucket_name}")
-            except S3Error as e:
-                logger.error(f"Error creating bucket {bucket_name}: {e}")
-    
-    def save_telegram_message(self, message_data: Dict[str, Any], channel_id: str, message_id: int) -> str:
-        """Save Telegram message data to MinIO"""
+    def _ensure_bucket_exists(self):
+        """Ensure the leaks bucket exists"""
         try:
-            bucket_name = BUCKET_CONFIGS['telegram_raw']['name']
-            file_path = FILE_PATHS['telegram_message'].format(
-                channel_id=channel_id,
-                message_id=message_id
-            )
-            
-            # Convert message data to JSON
-            message_json = json.dumps(message_data, default=str, indent=2)
-            
-            # Upload to MinIO
-            self.client.put_object(
-                bucket_name,
-                file_path,
-                io.BytesIO(message_json.encode('utf-8')),
-                len(message_json),
-                content_type='application/json'
-            )
-            
-            logger.info(f"Saved message {message_id} to MinIO: {file_path}")
-            return file_path
-            
-        except Exception as e:
-            logger.error(f"Error saving message to MinIO: {e}")
+            if not self.client.bucket_exists(self.bucket_name):
+                self.client.make_bucket(self.bucket_name)
+                logger.info(f"Created bucket: {self.bucket_name}")
+        except S3Error as e:
+            logger.error(f"Error creating bucket {self.bucket_name}: {e}")
             raise
     
-    def save_telegram_media(self, media_file_path: str, channel_id: str, message_id: int, original_filename: str) -> str:
-        """Save Telegram media file to MinIO"""
+    def _generate_file_hash(self, file_path: str) -> str:
+        """Generate SHA256 hash of file content"""
+        hash_sha256 = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_sha256.update(chunk)
+        return hash_sha256.hexdigest()
+    
+    def _generate_object_path(self, channel_id: str, message_id: int, filename: str, file_hash: str) -> str:
+        """Generate MinIO object path for telegram media"""
+        date_str = datetime.now().strftime("%Y%m%d")
+        # Path format: leaks/{channel_id}/{date}/{hash}/{filename}
+        return f"leaks/{channel_id}/{date_str}/{file_hash}/{filename}"
+    
+    def save_telegram_media(self, local_path: str, channel_id: str, message_id: int, original_filename: str) -> Optional[str]:
+        """
+        Save telegram media file to MinIO
+        
+        Args:
+            local_path: Local file path to upload
+            channel_id: Telegram channel ID (e.g., "-1002515757968")
+            message_id: Telegram message ID
+            original_filename: Original filename from telegram
+            
+        Returns:
+            MinIO object path (s3://bucket/path) or None if failed
+        """
         try:
-            bucket_name = BUCKET_CONFIGS['telegram_media']['name']
-            file_path = FILE_PATHS['telegram_media'].format(
-                channel_id=channel_id,
-                message_id=message_id,
-                filename=original_filename
-            )
+            if not os.path.exists(local_path):
+                logger.error(f"Local file does not exist: {local_path}")
+                return None
+            
+            # Generate file hash for deduplication
+            file_hash = self._generate_file_hash(local_path)
+            
+            # Generate object path
+            object_path = self._generate_object_path(channel_id, message_id, original_filename, file_hash)
             
             # Upload file to MinIO
             self.client.fput_object(
-                bucket_name,
-                file_path,
-                media_file_path
+                bucket_name=self.bucket_name,
+                object_name=object_path,
+                file_path=local_path,
+                content_type=self._get_content_type(original_filename)
             )
             
-            logger.info(f"Saved media file to MinIO: {file_path}")
-            return file_path
+            # Return s3:// URI
+            s3_uri = f"s3://{self.bucket_name}/{object_path}"
+            logger.info(f"Successfully uploaded {original_filename} to {s3_uri}")
+            return s3_uri
             
+        except S3Error as e:
+            logger.error(f"MinIO S3Error uploading {local_path}: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Error saving media to MinIO: {e}")
-            raise
+            logger.error(f"Error uploading {local_path} to MinIO: {e}")
+            return None
     
-    def get_file_url(self, bucket_name: str, file_path: str, expires_in_seconds: int = 3600) -> str:
-        """Generate presigned URL for file access"""
+    def _get_content_type(self, filename: str) -> str:
+        """Get content type based on file extension"""
+        ext = Path(filename).suffix.lower()
+        content_types = {
+            '.txt': 'text/plain',
+            '.json': 'application/json',
+            '.csv': 'text/csv',
+            '.sql': 'application/sql',
+            '.zip': 'application/zip',
+            '.rar': 'application/x-rar-compressed',
+            '.7z': 'application/x-7z-compressed',
+            '.pdf': 'application/pdf',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.mp4': 'video/mp4',
+            '.avi': 'video/x-msvideo',
+            '.mov': 'video/quicktime',
+        }
+        return content_types.get(ext, 'application/octet-stream')
+    
+    def download_file(self, s3_uri: str, local_path: str) -> bool:
+        """
+        Download file from MinIO to local path
+        
+        Args:
+            s3_uri: S3 URI (s3://bucket/path)
+            local_path: Local path to save file
+            
+        Returns:
+            True if successful, False otherwise
+        """
         try:
-            url = self.client.presigned_get_object(
-                bucket_name,
-                file_path,
-                expires=expires_in_seconds
-            )
-            return url
-        except Exception as e:
-            logger.error(f"Error generating presigned URL: {e}")
-            raise
-    
-    def get_telegram_message_url(self, channel_id: str, message_id: int, expires_in_seconds: int = 3600) -> str:
-        """Get presigned URL for Telegram message file"""
-        bucket_name = BUCKET_CONFIGS['telegram_raw']['name']
-        file_path = FILE_PATHS['telegram_message'].format(
-            channel_id=channel_id,
-            message_id=message_id
-        )
-        return self.get_file_url(bucket_name, file_path, expires_in_seconds)
-    
-    def get_telegram_media_url(self, channel_id: str, message_id: int, filename: str, expires_in_seconds: int = 3600) -> str:
-        """Get presigned URL for Telegram media file"""
-        bucket_name = BUCKET_CONFIGS['telegram_media']['name']
-        file_path = FILE_PATHS['telegram_media'].format(
-            channel_id=channel_id,
-            message_id=message_id,
-            filename=filename
-        )
-        return self.get_file_url(bucket_name, file_path, expires_in_seconds)
-    
-    def list_channel_files(self, channel_id: str) -> List[Dict[str, Any]]:
-        """List all files for a specific channel"""
-        try:
-            bucket_name = BUCKET_CONFIGS['telegram_raw']['name']
-            prefix = f"telegram/{channel_id}/"
+            # Parse s3:// URI
+            if not s3_uri.startswith('s3://'):
+                logger.error(f"Invalid S3 URI: {s3_uri}")
+                return False
             
-            objects = self.client.list_objects(bucket_name, prefix=prefix, recursive=True)
+            # Remove s3:// prefix and split bucket/path
+            path_part = s3_uri[5:]  # Remove 's3://'
+            if '/' not in path_part:
+                logger.error(f"Invalid S3 URI format: {s3_uri}")
+                return False
             
-            files = []
-            for obj in objects:
-                files.append({
-                    'name': obj.object_name,
-                    'size': obj.size,
-                    'last_modified': obj.last_modified,
-                    'etag': obj.etag
-                })
+            bucket, object_path = path_part.split('/', 1)
             
-            return files
+            # Ensure local directory exists
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
             
-        except Exception as e:
-            logger.error(f"Error listing channel files: {e}")
-            return []
-    
-    def delete_file(self, bucket_name: str, file_path: str) -> bool:
-        """Delete a file from MinIO"""
-        try:
-            self.client.remove_object(bucket_name, file_path)
-            logger.info(f"Deleted file: {file_path}")
+            # Download file
+            self.client.fget_object(bucket, object_path, local_path)
+            logger.info(f"Successfully downloaded {s3_uri} to {local_path}")
             return True
+            
+        except S3Error as e:
+            logger.error(f"MinIO S3Error downloading {s3_uri}: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Error deleting file: {e}")
+            logger.error(f"Error downloading {s3_uri}: {e}")
             return False
     
-    def get_file_metadata(self, bucket_name: str, file_path: str) -> Optional[Dict[str, Any]]:
-        """Get file metadata from MinIO"""
+    def list_files(self, channel_id: str = None, date: str = None) -> list:
+        """
+        List files in MinIO bucket
+        
+        Args:
+            channel_id: Filter by channel ID
+            date: Filter by date (YYYYMMDD format)
+            
+        Returns:
+            List of file objects
+        """
         try:
-            stat = self.client.stat_object(bucket_name, file_path)
-            return {
-                'size': stat.size,
-                'last_modified': stat.last_modified,
-                'etag': stat.etag,
-                'content_type': stat.content_type
-            }
+            prefix = "leaks/"
+            if channel_id:
+                prefix += f"{channel_id}/"
+                if date:
+                    prefix += f"{date}/"
+            
+            objects = self.client.list_objects(self.bucket_name, prefix=prefix, recursive=True)
+            return [obj.object_name for obj in objects]
+            
+        except S3Error as e:
+            logger.error(f"Error listing files: {e}")
+            return []
+    
+    def delete_file(self, s3_uri: str) -> bool:
+        """
+        Delete file from MinIO
+        
+        Args:
+            s3_uri: S3 URI to delete
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Parse s3:// URI
+            if not s3_uri.startswith('s3://'):
+                logger.error(f"Invalid S3 URI: {s3_uri}")
+                return False
+            
+            path_part = s3_uri[5:]  # Remove 's3://'
+            if '/' not in path_part:
+                logger.error(f"Invalid S3 URI format: {s3_uri}")
+                return False
+            
+            bucket, object_path = path_part.split('/', 1)
+            
+            # Delete object
+            self.client.remove_object(bucket, object_path)
+            logger.info(f"Successfully deleted {s3_uri}")
+            return True
+            
+        except S3Error as e:
+            logger.error(f"MinIO S3Error deleting {s3_uri}: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Error getting file metadata: {e}")
-            return None
+            logger.error(f"Error deleting {s3_uri}: {e}")
+            return False

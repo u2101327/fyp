@@ -1,4 +1,100 @@
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: leakguard-postgres
+    environment:
+      - POSTGRES_DB=leakguard
+      - POSTGRES_USER=leakguard
+      - POSTGRES_PASSWORD=leakguard123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - leakguard-network
+
+  # Django Web Application
+  web:
+    build: .
+    container_name: leakguard-web
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=your-secret-key-here-change-this-in-production
+      - DATABASE_URL=postgresql://leakguard:leakguard123@postgres:5432/leakguard
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin123
+      - MINIO_SECRET_KEY=admin123456
+      - OPENSEARCH_HOST=opensearch-node1:9200
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_PHONE=${TELEGRAM_PHONE}
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - opensearch-node1
+    networks:
+      - leakguard-network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Celery Worker for Background Tasks
+  celery:
+    build: .
+    container_name: leakguard-celery
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=your-secret-key-here-change-this-in-production
+      - DATABASE_URL=postgresql://leakguard:leakguard123@postgres:5432/leakguard
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin123
+      - MINIO_SECRET_KEY=admin123456
+      - OPENSEARCH_HOST=opensearch-node1:9200
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_PHONE=${TELEGRAM_PHONE}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - leakguard-network
+    command: celery -A leakguard worker -l info
+
+  # Celery Beat for Scheduled Tasks
+  celery-beat:
+    build: .
+    container_name: leakguard-celery-beat
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=your-secret-key-here-change-this-in-production
+      - DATABASE_URL=postgresql://leakguard:leakguard123@postgres:5432/leakguard
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin123
+      - MINIO_SECRET_KEY=admin123456
+      - OPENSEARCH_HOST=opensearch-node1:9200
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - leakguard-network
+    command: celery -A leakguard beat -l info
+
   redis:
     image: redis:7-alpine
     ports:
@@ -93,6 +189,12 @@ services:
       - opensearch-node2
 
 volumes:
+  postgres_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
   minio_data:
     driver: local
   redis_data:

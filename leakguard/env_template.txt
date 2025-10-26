@@ -2,9 +2,9 @@
 
 # Telegram API Configuration
 # Get these from https://my.telegram.org/apps
-TELEGRAM_API_ID=28362044
-TELEGRAM_API_HASH=b0eacf843a2e57669a5fe96f8d22c9ba
-TELEGRAM_PHONE=+60175861045
+TELEGRAM_API_ID=your_api_id_here
+TELEGRAM_API_HASH=your_api_hash_here
+TELEGRAM_PHONE=+1234567890
 
 # Django Configuration
 DEBUG=1

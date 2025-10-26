@@ -16,6 +16,11 @@ webdriver-manager
 telethon>=1.28.0
 asyncio
 aiofiles
+# Database dependencies
+psycopg2-binary>=2.9.0
+dj-database-url>=2.0.0
+# Web server
+gunicorn>=20.1.0
 # Telegram scraper dependencies
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.14
@@ -32,6 +37,7 @@ rsa==4.9.1
 yarl==1.20.1
 # OpenSearch dependencies
 opensearch-py>=2.0.0
+django-opensearch-dsl>=0.5.0
 # MinIO for file storage
 minio==7.2.0
 # Celery for background tasks

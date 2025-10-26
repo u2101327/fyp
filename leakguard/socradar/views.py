@@ -50,15 +50,20 @@ def loginPage(request):
 def dashboard(request):
     from api.models import Alert
     
-    # Get monitored credentials
+    # Get monitored credentials using the new model structure
+    monitored_credentials = MonitoredCredential.objects.filter(owner=request.user, is_active=True).order_by('-created_at')
+    
+    # Convert to the format expected by the template (for backward compatibility)
     rows = []
-    for mc in MonitoredCredential.objects.filter(owner=request.user):
-        if mc.email:
-            rows.append({"cred_type": "email", "value": mc.email})
-        if mc.username:
-            rows.append({"cred_type": "username", "value": mc.username})
-        if mc.domain:
-            rows.append({"cred_type": "domain", "value": mc.domain})
+    for mc in monitored_credentials:
+        rows.append({
+            "cred_type": mc.credential_type, 
+            "value": mc.display_value,
+            "priority": mc.priority,
+            "description": mc.description,
+            "created_at": mc.created_at,
+            "tags": mc.tags
+        })
 
     # Get recent alerts
     alerts = Alert.objects.filter(user=request.user).order_by('-created_at')[:10]
@@ -93,38 +98,63 @@ def dashboard(request):
 @login_required
 @require_POST
 def add_monitored_credential(request):
-
-    cred_type = (request.POST.get("cred_type") or "").strip()
-    value = (request.POST.get("value") or "").strip()
-
-    if not cred_type or not value:
+    # Get form data
+    target_type = (request.POST.get("targetType") or "").strip()
+    target_value = (request.POST.get("targetValue") or "").strip()
+    priority = (request.POST.get("priority") or "medium").strip()
+    description = (request.POST.get("description") or "").strip()
+    sources = request.POST.getlist("sources")  # Get list of selected sources
+    
+    # Validate required fields
+    if not target_type or not target_value:
         messages.error(request, "Please choose a type and enter a value.")
         return redirect('dashboard')
     
+    # Validate credential type
+    valid_types = ['email', 'username', 'domain', 'custom']
+    if target_type not in valid_types:
+        messages.error(request, "Invalid credential type.")
+        return redirect('dashboard')
+    
     try:
-        if cred_type == "email":
-            obj, created = MonitoredCredential.objects.get_or_create(
-                owner=request.user, email=value
-            )
-        elif cred_type == "username":
-            obj, created = MonitoredCredential.objects.get_or_create(
-                owner=request.user, username=value
-            )
-        elif cred_type == "domain":
-            obj, created = MonitoredCredential.objects.get_or_create(
-                owner=request.user, domain=value.lower()
-            )
-        else:
-            messages.error(request, "Unknown credential type.")
+        # Create the credential object with the new model structure
+        credential_data = {
+            'owner': request.user,
+            'credential_type': target_type,
+            'priority': priority,
+            'description': description,
+            'is_active': True,
+            'tags': sources  # Store selected sources as tags
+        }
+        
+        # Set the appropriate field based on credential type
+        if target_type == "email":
+            credential_data['email'] = target_value.lower()
+            # Check for existing email
+            existing = MonitoredCredential.objects.filter(owner=request.user, email=target_value.lower()).first()
+        elif target_type == "username":
+            credential_data['username'] = target_value
+            existing = MonitoredCredential.objects.filter(owner=request.user, username=target_value).first()
+        elif target_type == "domain":
+            credential_data['domain'] = target_value.lower()
+            existing = MonitoredCredential.objects.filter(owner=request.user, domain=target_value.lower()).first()        
+        elif target_type == "custom":
+            credential_data['custom_value'] = target_value
+            existing = MonitoredCredential.objects.filter(owner=request.user, custom_value=target_value).first()
+        
+        # Check if credential already exists
+        if existing:
+            messages.info(request, f"That {target_type} is already being monitored.")
             return redirect("dashboard")
-    except Exception:
-        messages.error(request, "Could not save credential.")
+        
+        # Create new credential
+        obj = MonitoredCredential.objects.create(**credential_data)
+        messages.success(request, f"{target_type.title()} credential added and will be monitored.")
+        
+    except Exception as e:
+        messages.error(request, f"Could not save credential: {str(e)}")
         return redirect("dashboard")
 
-    if created:
-        messages.success(request, "Credential added and will be monitored.")
-    else:
-        messages.info(request, "That credential is already being monitored.")
     return redirect("dashboard")
 
 @login_required
@@ -753,4 +783,633 @@ def database_status(request):
         'recent_leaks': recent_leaks,
     }
     
-    return render(request, 'database_status.html', context)   
+    return render(request, 'database_status.html', context)
+
+@login_required
+def telegram_links_dashboard(request):
+    """Dashboard for monitoring Telegram links"""
+    from .models import TelegramLink, TelegramChannel, TelegramMessage
+    from .utils import get_link_statistics
+    
+    # Get filter parameters
+    channel_filter = request.GET.get('channel')
+    status_filter = request.GET.get('status')
+    suspicious_filter = request.GET.get('suspicious')
+    channel_status_filter = request.GET.get('channel_status', 'all')  # New filter for channel status
+    
+    # Build queryset
+    links = TelegramLink.objects.select_related('message', 'channel').all()
+    
+    if channel_filter:
+        links = links.filter(channel__username=channel_filter)
+    
+    if status_filter:
+        links = links.filter(validation_status=status_filter)
+    
+    if suspicious_filter == 'true':
+        links = links.filter(is_suspicious=True)
+    
+    # Get recent links (last 100)
+    recent_links = links.order_by('-created_at')[:100]
+    
+    # Get statistics
+    stats = get_link_statistics()
+    
+    # Get channel list for filter
+    channels = TelegramChannel.objects.filter(is_active=True).order_by('username')
+    
+    # Get status choices
+    status_choices = TelegramLink.VALIDATION_STATUS_CHOICES
+    
+    # Get all channels and apply status filter
+    all_channels = TelegramChannel.objects.all().order_by('-created_at')
+    
+    # Apply channel status filter
+    if channel_status_filter == 'active':
+        filtered_channels = all_channels.filter(validation_status='PUBLIC_OK')
+    elif channel_status_filter == 'inactive':
+        filtered_channels = all_channels.exclude(validation_status='PUBLIC_OK')
+    elif channel_status_filter == 'not_found':
+        filtered_channels = all_channels.filter(validation_status='NOT_FOUND')
+    elif channel_status_filter == 'auth_error':
+        filtered_channels = all_channels.filter(validation_status__in=['AUTH_ERROR', 'AUTH_TIMEOUT'])
+    elif channel_status_filter == 'api_error':
+        filtered_channels = all_channels.filter(validation_status__in=['RPC_ERROR', 'ERROR'])
+    elif channel_status_filter == 'no_api':
+        filtered_channels = all_channels.filter(validation_status='NO_API_CREDENTIALS')
+    elif channel_status_filter == 'pending':
+        filtered_channels = all_channels.filter(validation_status='PENDING')
+    else:  # 'all'
+        filtered_channels = all_channels
+    
+    # Get recent alerts data (from TelegramLink with high risk scores)
+    recent_alerts = TelegramLink.objects.filter(
+        is_suspicious=True
+    ).select_related('message', 'channel').order_by('-created_at')[:10]
+    
+    # Get monitored keywords (from your existing system)
+    from api.models import MonitoredCredential
+    monitored_keywords = MonitoredCredential.objects.filter(
+        user=request.user, 
+        is_active=True
+    ).values_list('value', flat=True)[:10]
+    
+    # Get processed files for display
+    from .models import ProcessedFile
+    processed_files = ProcessedFile.objects.select_related('message__channel').order_by('-processed_at')[:20]
+    
+    context = {
+        'recent_links': recent_links,
+        'stats': stats,
+        'channels': channels,
+        'status_choices': status_choices,
+        'all_channels': filtered_channels,
+        'recent_alerts': recent_alerts,
+        'monitored_keywords': list(monitored_keywords),
+        'processed_files': processed_files,
+        'current_filters': {
+            'channel': channel_filter,
+            'status': status_filter,
+            'suspicious': suspicious_filter,
+            'channel_status': channel_status_filter,
+        }
+    }
+    
+    return render(request, 'telegram_links_dashboard.html', context)
+
+
+@login_required
+def search_credentials(request):
+    """Search credentials using OpenSearch"""
+    from .opensearch_client import get_opensearch_client
+    from django.http import JsonResponse
+    
+    try:
+        # Get search parameters
+        query = request.GET.get('q', '').strip()
+        domain = request.GET.get('domain', '').strip()
+        risk_level = request.GET.get('risk_level', '').strip()
+        channel = request.GET.get('channel', '').strip()
+        page = int(request.GET.get('page', 1))
+        size = int(request.GET.get('size', 20))
+        
+        # Build filters
+        filters = {}
+        if domain:
+            filters['domain'] = domain
+        if risk_level:
+            filters['risk_level'] = risk_level
+        if channel:
+            filters['channel_username'] = channel
+        
+        # Calculate pagination
+        from_ = (page - 1) * size
+        
+        # Search using OpenSearch
+        opensearch_client = get_opensearch_client()
+        
+        if not opensearch_client.is_available():
+            return JsonResponse({
+                'error': 'OpenSearch not available',
+                'results': [],
+                'total': 0,
+                'page': page,
+                'size': size
+            })
+        
+        # Perform search
+        results = opensearch_client.search_credentials(
+            query=query,
+            filters=filters,
+            size=size,
+            from_=from_
+        )
+        
+        if 'error' in results:
+            return JsonResponse({
+                'error': results['error'],
+                'results': [],
+                'total': 0,
+                'page': page,
+                'size': size
+            })
+        
+        return JsonResponse({
+            'results': results['hits'],
+            'total': results['total'],
+            'page': page,
+            'size': size,
+            'query': query,
+            'filters': filters
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in search_credentials: {e}")
+        return JsonResponse({
+            'error': str(e),
+            'results': [],
+            'total': 0,
+            'page': page,
+            'size': size
+        })
+
+
+@login_required
+def get_search_analytics(request):
+    """Get search analytics and aggregations"""
+    from .opensearch_client import get_opensearch_client
+    from django.http import JsonResponse
+    
+    try:
+        opensearch_client = get_opensearch_client()
+        
+        if not opensearch_client.is_available():
+            return JsonResponse({
+                'error': 'OpenSearch not available',
+                'analytics': {}
+            })
+        
+        # Get aggregations
+        analytics = opensearch_client.get_aggregations()
+        
+        if 'error' in analytics:
+            return JsonResponse({
+                'error': analytics['error'],
+                'analytics': {}
+            })
+        
+        return JsonResponse({
+            'analytics': analytics
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in get_search_analytics: {e}")
+        return JsonResponse({
+            'error': str(e),
+            'analytics': {}
+        })
+
+
+@login_required
+def bulk_index_existing_data(request):
+    """Bulk index existing credentials to OpenSearch"""
+    from .opensearch_client import get_opensearch_client
+    from .models import ExtractedCredential
+    from django.http import JsonResponse
+    
+    try:
+        opensearch_client = get_opensearch_client()
+        
+        if not opensearch_client.is_available():
+            return JsonResponse({
+                'error': 'OpenSearch not available'
+            })
+        
+        # Get all credential IDs
+        credential_ids = list(ExtractedCredential.objects.values_list('id', flat=True))
+        
+        if not credential_ids:
+            return JsonResponse({
+                'message': 'No credentials to index',
+                'indexed': 0
+            })
+        
+        # Bulk index in batches
+        batch_size = 1000
+        total_indexed = 0
+        
+        for i in range(0, len(credential_ids), batch_size):
+            batch_ids = credential_ids[i:i + batch_size]
+            result = opensearch_client.bulk_index_credentials(batch_ids)
+            
+            if result.get('success'):
+                total_indexed += result.get('indexed', 0)
+            else:
+                return JsonResponse({
+                    'error': f"Failed to index batch: {result.get('error')}",
+                    'indexed': total_indexed
+                })
+        
+        return JsonResponse({
+            'message': f'Successfully indexed {total_indexed} credentials',
+            'indexed': total_indexed,
+            'total': len(credential_ids)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in bulk_index_existing_data: {e}")
+        return JsonResponse({
+            'error': str(e)
+        })
+
+@login_required
+@require_POST
+def add_telegram_channel(request):
+    """Add a new Telegram channel for monitoring"""
+    from .models import TelegramChannel
+    from .utils import validate_telegram_channel
+    from django.utils import timezone
+    
+    channel_link = request.POST.get('channelLink', '').strip()
+    keywords = request.POST.get('alertKeywords', '').strip()
+    
+    if not channel_link:
+        messages.error(request, "Please provide a valid Telegram channel link or username.")
+        return redirect('telegram_links_dashboard')
+    
+    # Parse channel link to extract username
+    username = None
+    if channel_link.startswith('@'):
+        username = channel_link[1:]
+    elif 't.me/' in channel_link:
+        username = channel_link.split('t.me/')[-1].split('?')[0]
+    else:
+        username = channel_link
+    
+    # Check if channel already exists
+    if TelegramChannel.objects.filter(username=username).exists():
+        messages.info(request, f"Channel @{username} is already being monitored.")
+        return redirect('telegram_links_dashboard')
+    
+    try:
+        # Validate the channel first
+        messages.info(request, f"Validating channel @{username}...")
+        validation_result = validate_telegram_channel(username)
+        
+        # Create new channel with validation results
+        channel = TelegramChannel.objects.create(
+            name=f"Channel {username}",
+            username=username,
+            url=f"https://t.me/{username}",
+            description=f"Monitored channel with keywords: {keywords}" if keywords else "Manually added channel",
+            is_active=True,
+            validation_status=validation_result['status'],
+            validation_date=timezone.now(),
+            validation_error=validation_result.get('error', '')
+        )
+        
+        # Provide appropriate feedback based on validation result
+        if validation_result['status'] == 'PUBLIC_OK':
+            messages.success(request, f"✅ Successfully added and validated channel @{username} for monitoring.")
+        elif validation_result['status'] == 'NOT_FOUND':
+            messages.warning(request, f"⚠️ Added channel @{username} but it was not found. Please check the channel name.")
+        elif validation_result['status'] == 'NO_API_CREDENTIALS':
+            messages.warning(request, f"⚠️ Added channel @{username} but validation skipped (no API credentials).")
+        else:
+            messages.warning(request, f"⚠️ Added channel @{username} but validation failed: {validation_result.get('error', 'Unknown error')}")
+        
+    except Exception as e:
+        messages.error(request, f"Failed to add channel: {str(e)}")
+    
+    # Stay on the same page
+    return redirect(request.META.get('HTTP_REFERER', 'telegram_links_dashboard'))
+
+@login_required
+@require_POST
+def toggle_channel_monitoring(request, channel_id):
+    """Toggle monitoring status of a channel"""
+    from .models import TelegramChannel
+    
+    try:
+        channel = TelegramChannel.objects.get(id=channel_id)
+        channel.is_active = not channel.is_active
+        channel.save()
+        
+        status = "activated" if channel.is_active else "paused"
+        messages.success(request, f"Channel @{channel.username} monitoring {status}.")
+        
+    except TelegramChannel.DoesNotExist:
+        messages.error(request, "Channel not found.")
+    except Exception as e:
+        messages.error(request, f"Failed to update channel: {str(e)}")
+    
+    # Stay on the same page
+    return redirect(request.META.get('HTTP_REFERER', 'telegram_links_dashboard'))
+
+@login_required
+@require_POST
+def remove_telegram_channel(request, channel_id):
+    """Remove a Telegram channel from monitoring"""
+    from .models import TelegramChannel
+    
+    try:
+        channel = TelegramChannel.objects.get(id=channel_id)
+        username = channel.username
+        channel.delete()
+        
+        messages.success(request, f"Channel @{username} has been removed from monitoring.")
+        
+    except TelegramChannel.DoesNotExist:
+        messages.error(request, "Channel not found.")
+    except Exception as e:
+        messages.error(request, f"Failed to remove channel: {str(e)}")
+    
+    # Stay on the same page
+    return redirect(request.META.get('HTTP_REFERER', 'telegram_links_dashboard'))
+
+@login_required
+def process_telegram_links_view(request):
+    """Process Telegram links via web interface"""
+    from .management.commands.process_telegram_links import Command
+    
+    try:
+        # Run the management command
+        command = Command()
+        command.handle()
+        
+        messages.success(request, "Telegram links processed successfully.")
+        
+    except Exception as e:
+        messages.error(request, f"Failed to process links: {str(e)}")
+    
+    # Stay on the same page
+    return redirect(request.META.get('HTTP_REFERER', 'telegram_links_dashboard'))
+
+@login_required
+def crawl_telegram_channels(request):
+    """Crawl GitHub repository to discover and validate Telegram channels"""
+    import requests
+    import re
+    from django.utils import timezone
+    from .models import TelegramChannel
+    from .utils import validate_telegram_channel
+    
+    try:
+        # Fetch the GitHub markdown content
+        github_url = "https://raw.githubusercontent.com/fastfire/deepdarkCTI/main/telegram_infostealer.md"
+        response = requests.get(github_url, timeout=30)
+        response.raise_for_status()
+        
+        # Extract Telegram channel links from markdown
+        content = response.text
+        telegram_links = re.findall(r'https://t\.me/([a-zA-Z0-9_]+)', content)
+        
+        # Also extract @username patterns
+        at_patterns = re.findall(r'@([a-zA-Z0-9_]+)', content)
+        
+        # Combine and deduplicate
+        all_usernames = list(set(telegram_links + at_patterns))
+        
+        discovered_channels = []
+        skipped_channels = []
+        
+        for username in all_usernames:
+            # Skip if username is too short or contains invalid characters
+            if len(username) < 3 or not re.match(r'^[a-zA-Z0-9_]+$', username):
+                continue
+                
+            # Check if channel already exists
+            existing_channel = TelegramChannel.objects.filter(username=username).first()
+            if existing_channel:
+                # Update existing channel with fresh validation status
+                validation_result = validate_telegram_channel(username)
+                existing_channel.validation_status = validation_result['status']
+                existing_channel.validation_date = timezone.now()
+                existing_channel.validation_error = validation_result.get('error', '')
+                existing_channel.is_active = validation_result['is_active']
+                existing_channel.save()
+                
+                skipped_channels.append({
+                    'username': username,
+                    'reason': 'Updated existing channel'
+                })
+                continue
+            
+            # Use the new validation function
+            validation_result = validate_telegram_channel(username)
+            
+            # Create new channel with detailed validation info
+            channel = TelegramChannel.objects.create(
+                name=f"Discovered: {username}",
+                username=username,
+                url=f"https://t.me/{username}",
+                description=f"Discovered from deepdarkCTI repository",
+                is_active=validation_result['is_active'],
+                validation_status=validation_result['status'],
+                validation_date=timezone.now(),
+                validation_error=validation_result.get('error', '')
+            )
+            
+            discovered_channels.append({
+                'username': username,
+                'status': validation_result['status'],
+                'is_active': validation_result['is_active'],
+                'title': validation_result['title'],
+                'members_count': validation_result['members_count'],
+                'error': validation_result['error'],
+                'new': True,
+                'channel_id': channel.id
+            })
+        
+        # Prepare detailed success message
+        total_found = len(all_usernames)
+        new_channels = len(discovered_channels)
+        updated_channels = len(skipped_channels)
+        active_count = sum(1 for c in discovered_channels if c['is_active'])
+        inactive_count = new_channels - active_count
+        
+        if new_channels > 0 or updated_channels > 0:
+            messages.success(
+                request, 
+                f"Processed {total_found} channels: {new_channels} new, {updated_channels} updated. "
+                f"New channels: {active_count} active, {inactive_count} inactive."
+            )
+        else:
+            messages.info(
+                request, 
+                f"No channels found to process. Total channels checked: {total_found}."
+            )
+        
+    except requests.RequestException as e:
+        messages.error(request, f"Failed to fetch GitHub repository: {str(e)}")
+    except Exception as e:
+        messages.error(request, f"Failed to crawl channels: {str(e)}")
+    
+    # Stay on the same page by redirecting to the current URL or fallback to telegram links page
+    return redirect(request.META.get('HTTP_REFERER', 'telegram_links_dashboard'))
+
+@login_required
+@require_POST
+def scrape_telegram_channel(request, channel_id):
+    """Start scraping a specific Telegram channel"""
+    from .models import TelegramChannel
+    from .tasks import scrape_channel_task
+    
+    try:
+        # Get the channel
+        channel = TelegramChannel.objects.get(id=channel_id)
+        
+        # Check if channel is active
+        if channel.validation_status != 'PUBLIC_OK':
+            messages.error(request, f'Cannot scrape channel @{channel.username}: Channel is not active (Status: {channel.validation_status})')
+            return redirect(request.META.get('HTTP_REFERER', 'telegram_links_dashboard'))
+        
+        # Get last scraped message ID (default to 0 for first scrape)
+        last_scraped_msg_id = getattr(channel, 'last_scraped_msg_id', 0)
+        
+        # Create scrape job
+        job_data = {
+            'channel_id': channel.id,
+            'channel_username': channel.username,
+            'last_scraped_msg_id': last_scraped_msg_id,
+            'requested_by': request.user.id,
+            'requested_at': timezone.now().isoformat()
+        }
+        
+        # Queue the scraping task
+        try:
+            task = scrape_channel_task.delay(
+                channel_id=channel.id,
+                channel_username=channel.username,
+                last_scraped_msg_id=last_scraped_msg_id,
+                requested_by=request.user.id
+            )
+            
+            # Update channel with task info
+            channel.scraping_task_id = task.id
+            channel.scraping_status = 'PENDING'
+            channel.save()
+            
+            messages.success(request, f'Started scraping channel @{channel.username}. Task ID: {task.id}')
+            
+        except Exception as celery_error:
+            # Fallback to synchronous scraping if Celery is not available
+            messages.info(request, f'Running scraping synchronously for @{channel.username} (Celery not available)')
+            
+            try:
+                # Import and run scraper directly
+                from .scraper import run_sync_scraping
+                result = run_sync_scraping(channel.username, last_scraped_msg_id)
+                
+                if result['success']:
+                    messages.success(request, f'Successfully scraped @{channel.username}: {result["messages_count"]} messages, {result["files_count"]} files')
+                else:
+                    messages.error(request, f'Error scraping @{channel.username}: {result["error"]}')
+                    
+            except Exception as scraping_error:
+                messages.error(request, f'Error during scraping: {str(scraping_error)}')
+        
+    except TelegramChannel.DoesNotExist:
+        messages.error(request, 'Channel not found')
+    except Exception as e:
+        messages.error(request, f'Error starting scrape job: {str(e)}')
+    
+    # Stay on the same page
+    return redirect(request.META.get('HTTP_REFERER', 'telegram_links_dashboard'))
+
+@login_required
+def get_scraping_progress(request, channel_id):
+    """Get scraping progress for a specific channel"""
+    from .models import TelegramChannel
+    from .tasks import scrape_channel_task
+    from celery.result import AsyncResult
+    from django.http import JsonResponse
+    
+    try:
+        channel = TelegramChannel.objects.get(id=channel_id)
+        
+        if not channel.scraping_task_id:
+            return JsonResponse({
+                'status': 'IDLE',
+                'progress': 0,
+                'message': 'No active scraping task',
+                'messages_count': 0,
+                'files_count': 0,
+                'estimated_time': 'N/A'
+            })
+        
+        # Get task result
+        task_result = AsyncResult(channel.scraping_task_id)
+        
+        if task_result.state == 'PENDING':
+            return JsonResponse({
+                'status': 'PENDING',
+                'progress': 0,
+                'message': 'Task is waiting to start...',
+                'messages_count': 0,
+                'files_count': 0,
+                'estimated_time': 'Calculating...'
+            })
+        elif task_result.state == 'PROGRESS':
+            meta = task_result.info
+            return JsonResponse({
+                'status': 'RUNNING',
+                'progress': meta.get('progress', 0),
+                'message': meta.get('status', 'Processing...'),
+                'messages_count': meta.get('messages_count', 0),
+                'files_count': meta.get('files_count', 0),
+                'estimated_time': meta.get('estimated_time', 'Calculating...')
+            })
+        elif task_result.state == 'SUCCESS':
+            result = task_result.result
+            return JsonResponse({
+                'status': 'COMPLETED',
+                'progress': 100,
+                'message': 'Scraping completed successfully!',
+                'messages_count': result.get('messages_count', 0),
+                'files_count': result.get('files_count', 0),
+                'estimated_time': 'Done!'
+            })
+        elif task_result.state == 'FAILURE':
+            return JsonResponse({
+                'status': 'FAILED',
+                'progress': 0,
+                'message': f'Scraping failed: {str(task_result.info)}',
+                'messages_count': 0,
+                'files_count': 0,
+                'estimated_time': 'Failed'
+            })
+        else:
+            return JsonResponse({
+                'status': task_result.state,
+                'progress': 0,
+                'message': f'Task state: {task_result.state}',
+                'messages_count': 0,
+                'files_count': 0,
+                'estimated_time': 'Unknown'
+            })
+            
+    except TelegramChannel.DoesNotExist:
+        return JsonResponse({'error': 'Channel not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

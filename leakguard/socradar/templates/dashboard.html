@@ -112,7 +112,7 @@
             </a>
         </div>
         <nav class="py-4">
-            <a href="#dashboard" class="flex items-center px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-md">
+            <a href="{% url 'dashboard' %}" class="flex items-center px-6 py-3 text-blue-600 dark:text-blue-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h7.5" />
                 </svg>
@@ -124,6 +124,12 @@
                 </svg>
                 <span class="ml-3">Alerts</span>
                 <span id="sidebarAlertCount" class="ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-200 dark:bg-red-700 dark:text-red-200 rounded-full">0</span>
+            </a>
+            <a href="{% url 'telegram_links_dashboard' %}" class="flex items-center px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-md">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A5.996 5.996 0 0 1 12 6L9 12h3l3-6.874A5.996 5.996 0 0 1 20.732 12H18M7.5 12a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM16.5 12a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
+                </svg>
+                <span class="ml-3">Telegram Monitor</span>
             </a>
             <a href="#sources" class="flex items-center px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-md">
                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -346,7 +352,8 @@
                 <!-- Add New Monitoring Form -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
                     <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">Add New Monitoring Target</h2>
-                    <form id="monitoringForm" class="space-y-4">
+                    <form id="monitoringForm" action="{% url 'add_monitored_credential' %}" method="POST" class="space-y-4">
+                        {% csrf_token %}
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label for="targetType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Type</label>
@@ -354,10 +361,7 @@
                                     <option value="">Select type...</option>
                                     <option value="email">Email Address</option>
                                     <option value="domain">Domain</option>
-                                    <option value="username">Username</option>
-                                    <option value="phone">Phone Number</option>
-                                    <option value="credit_card">Credit Card</option>
-                                    <option value="ssn">Social Security Number</option>
+                                    <option value="username">Username</option>                    
                                     <option value="custom">Custom Pattern</option>
                                 </select>
                     </div>
@@ -534,6 +538,52 @@
                     </div>
                 </div>
 
+                <!-- Monitored Credentials Section -->
+                {% if monitored_credentials %}
+                <div class="mt-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Your Monitored Credentials</h3>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                {{ monitored_credentials|length }} Active
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {% for cred in monitored_credentials %}
+                            <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="font-medium text-gray-900 dark:text-white">{{ cred.cred_type|title }}</h4>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                        {% if cred.priority == 'critical' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200
+                                        {% elif cred.priority == 'high' %}bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200
+                                        {% elif cred.priority == 'medium' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200
+                                        {% else %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{% endif %}">
+                                        {{ cred.priority|title }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2 font-mono">{{ cred.value }}</p>
+                                {% if cred.description %}
+                                <p class="text-xs text-gray-500 dark:text-gray-500 mb-2">{{ cred.description|truncatechars:60 }}</p>
+                                {% endif %}
+                                {% if cred.tags %}
+                                <div class="mb-2">
+                                    {% for tag in cred.tags %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 mr-1">
+                                        {{ tag }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    Added: {{ cred.created_at|date:"M d, Y" }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Monitored Channels Section -->
                 {% if monitored_channels %}
                 <div class="mt-8">
@@ -634,33 +684,28 @@
             document.getElementById('monitoringForm').reset();
         }
 
-        // Handle form submission
+        // Handle form submission with client-side validation
         document.getElementById('monitoringForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
             const formData = new FormData(this);
             const targetType = formData.get('targetType');
             const targetValue = formData.get('targetValue');
-            const priority = formData.get('priority');
             const sources = Array.from(document.querySelectorAll('input[name="sources"]:checked')).map(input => input.value);
-            const description = formData.get('description');
             
             // Basic validation
             if (!targetType || !targetValue) {
+                e.preventDefault();
                 alert('Please fill in the target type and value.');
                 return;
             }
             
             if (sources.length === 0) {
+                e.preventDefault();
                 alert('Please select at least one data source.');
                 return;
             }
             
-            // Show success message (you can replace this with actual API call)
-            alert(`Monitoring target added successfully!\nType: ${targetType}\nValue: ${targetValue}\nPriority: ${priority}\nSources: ${sources.join(', ')}`);
-            
-            // Clear form after successful submission
-            clearForm();
+            // If validation passes, let the form submit naturally to the backend
+            // The backend will handle the actual saving and show appropriate messages
         });
 
         // Initialize dashboard on load
